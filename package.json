@@ -5,7 +5,6 @@
   "dependencies": {
     "@capacitor/android": "latest",
     "@capacitor/cli": "latest",
-    "@capacitor/core": "latest",
-    "@capacitor-community/media": "latest"
+    "@capacitor/core": "latest"
   }
 }
