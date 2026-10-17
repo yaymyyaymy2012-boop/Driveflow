@@ -77,10 +77,8 @@ public class GalleryPlugin extends Plugin {
             call.reject("geen toegang tot foto's");
             return;
         }
-        Integer li = call.getInt("limit", 100);
-        int limit = li == null ? 100 : li;
-        Long sl = call.getLong("since", 0L);
-        long since = sl == null ? 0L : sl;
+        int limit = call.getData().optInt("limit", 100);
+        long since = call.getData().optLong("since", 0L);
         String[] proj = {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -119,9 +117,9 @@ public class GalleryPlugin extends Plugin {
 
     @PluginMethod
     public void copy(PluginCall call) {
-        Long id = call.getLong("id");
-        if (id == null) {
-            call.reject("id ontbreekt");
+        long id = call.getData().optLong("id", -1L);
+        if (id < 0) {
+            call.reject("id ontbreekt: " + call.getData().toString());
             return;
         }
         try {
