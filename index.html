@@ -831,33 +831,52 @@ const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.is
 function mediaPlugin() { return window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Media; }
 let SCANNING = false;
 function toMs(v) { if (typeof v === 'number') return v < 1e12 ? v * 1000 : v; const t = Date.parse(v); return isNaN(t) ? Date.now() : t; }
+const PATHRE = /^(\/|file:|content:)/;
+function mediaPath(m) {
+  for (const k of ['path', 'uri', 'filePath', 'data']) { const v = m && m[k]; if (typeof v === 'string' && PATHRE.test(v)) return v; }
+  if (m && typeof m.identifier === 'string' && PATHRE.test(m.identifier)) return m.identifier;
+  return null;
+}
+function dbgSheet(title, info) { openSheet('<h2>' + esc(title) + '</h2><p class="sd" style="white-space:pre-wrap;word-break:break-all;font-size:.74rem">' + esc(info) + '</p><button class="btn btn-secondary btn-block" onclick="closeSheet()">Sluiten</button>'); }
 async function scanGallery(opts) {
   opts = opts || {}; const M = mediaPlugin();
-  if (!NATIVE || !M || SCANNING || ADDING) return;
+  if (!NATIVE || SCANNING || ADDING) return;
+  if (!M) { if (opts.force) dbgSheet('Galerij-plugin ontbreekt', 'Capacitor.Plugins: ' + Object.keys((window.Capacitor && Capacitor.Plugins) || {}).join(', ')); return; }
   if (!opts.force && !S.autoImport) return;
-  SCANNING = true;
+  SCANNING = true; let stage = 'start', sample = '';
   try {
+    stage = 'rechten';
     try { if (M.requestPermissions) await M.requestPermissions(); } catch (e) {}
     let since = Number(localStorage.getItem('df_auto_since') || 0);
     if (!since) { since = Date.now(); localStorage.setItem('df_auto_since', String(since)); }
     const seen = new Set(lsGet('df_seen_media', []));
-    const res = await M.getMedias({ quantity: opts.all ? 300 : 80, types: 'photos', sort: 'creationDate', thumbnailWidth: 64, thumbnailHeight: 64, thumbnailQuality: 30 });
-    const list = (res && res.medias || []).filter(m => !seen.has(m.identifier) && (opts.all || toMs(m.creationDate) >= since));
-    if (!list.length) { if (opts.force) toast('Geen nieuwe foto’s gevonden'); return; }
-    const files = [];
+    stage = 'getMedias';
+    let res;
+    try { res = await M.getMedias({ quantity: opts.all ? 300 : 80, types: 'photos', sort: 'creationDate' }); }
+    catch (e1) { res = await M.getMedias({ quantity: opts.all ? 300 : 80 }); }
+    const all = (res && res.medias) || [];
+    if (all[0]) { const o = {}; Object.keys(all[0]).forEach(k => { const v = all[0][k]; o[k] = typeof v === 'string' ? v.slice(0, 80) : v; }); sample = JSON.stringify(o); }
+    const list = all.filter(m => !seen.has(m.identifier) && (opts.all || toMs(m.creationDate) >= since));
+    if (!list.length) { if (opts.force) dbgSheet('Geen nieuwe foto’s', 'Galerij gaf ' + all.length + ' items terug.\n' + sample); return; }
+    const files = []; let lastErr = '';
     for (const m of list.slice(0, 60)) {
       try {
-        const r = await M.getMediaByIdentifier({ identifier: m.identifier });
-        const path = r && (r.path || r.uri); if (!path) continue;
-        const blob = await (await fetch(Capacitor.convertFileSrc(path))).blob();
+        stage = 'pad';
+        let path = mediaPath(m);
+        if (!path && M.getMediaByIdentifier) { const r = await M.getMediaByIdentifier({ identifier: m.identifier }); path = r && (r.path || r.uri || r.data); }
+        if (!path) { lastErr = 'geen pad voor ' + m.identifier; continue; }
+        stage = 'lezen';
+        const resp = await fetch(Capacitor.convertFileSrc(path)); if (!resp.ok) throw new Error('fetch ' + resp.status + ' ' + path);
+        const blob = await resp.blob();
         const name = decodeURIComponent(String(path).split('/').pop() || ('foto-' + Date.now() + '.jpg'));
         files.push(new File([blob], name, { type: blob.type || 'image/jpeg', lastModified: toMs(m.creationDate) }));
         seen.add(m.identifier);
-      } catch (e) { console.warn('media', e); }
+      } catch (e) { lastErr = stage + ': ' + (e && e.message || e); console.warn('media', e); }
     }
     lsSet('df_seen_media', [...seen].slice(-3000));
     if (files.length) await addFiles(files);
-  } catch (e) { console.warn('scanGallery', e); if (opts.force) toast('Galerij lezen mislukt — geef toegang tot foto’s'); }
+    else if (opts.force) dbgSheet('Kon foto’s niet lezen', lastErr + '\n' + sample);
+  } catch (e) { console.warn('scanGallery', e); if (opts.force) dbgSheet('Galerij lezen mislukt', 'Stap: ' + stage + '\nFout: ' + (e && (e.message || JSON.stringify(e)) || e) + '\n' + sample); }
   finally { SCANNING = false; }
 }
 if (NATIVE) {
