@@ -1,0 +1,6 @@
+{
+  "appId": "com.driveflow.app",
+  "appName": "DriveFlow",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

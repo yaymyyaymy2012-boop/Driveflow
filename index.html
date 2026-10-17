@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a" id="meta-theme">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>DriveFlow</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231cb0f6'/%3E%3Cpath d='M20 44a9 9 0 010-18 12 12 0 0123 2 8 8 0 01-1 16z' fill='%23111'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+<style>
+:root, [data-theme="dark"] {
+  --bg:#0b0f1a; --bg2:#121826; --bg3:#1a2235; --bg4:#2a3850;
+  --card:#151d2e; --edge:#27334a;
+  --text:#f1f5f9; --text2:#94a3b8; --text3:#64748b;
+  --accent:#1cb0f6; --accent2:#4dc9ff; --accent-ink:#111;
+  --accent-d:color-mix(in srgb, var(--accent) 62%, #000);
+  --accent-soft:color-mix(in srgb, var(--accent) 16%, transparent);
+  --green:#58cc02; --red:#ff4b4b; --red-d:#c93a3a; --gold:#ffc800; --orange:#ff9600;
+  --pop:0 4px 0 var(--edge);
+  color-scheme:dark;
+}
+[data-theme="light"] {
+  --bg:#f6f8fb; --bg2:#ffffff; --bg3:#eef2f7; --bg4:#e2e8f0;
+  --card:#ffffff; --edge:#dde3ec;
+  --text:#0f172a; --text2:#475569; --text3:#94a3b8;
+  color-scheme:light;
+}
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:'Nunito',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; font-weight:700; overscroll-behavior:none; }
+button { font-family:inherit; font-weight:inherit; color:inherit; cursor:pointer; border:none; background:none; padding:0; }
+input { font-family:inherit; font-weight:800; }
+.hidden { display:none !important; }
+#app { position:fixed; inset:0; display:flex; flex-direction:column; max-width:640px; margin:0 auto; background:var(--bg); }
+.screen { display:none; flex:1; min-height:0; flex-direction:column; }
+.screen.active { display:flex; }
+.scroll { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 16px 130px; -webkit-overflow-scrolling:touch; }
+.hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:calc(env(safe-area-inset-top) + 16px) 16px 10px; }
+.hdr h1 { margin:0; font-size:1.7rem; font-weight:900; letter-spacing:-.02em; line-height:1.1; }
+.hdr .sub { color:var(--text2); font-size:.84rem; font-weight:800; margin-top:3px; }
+.hdr-btns { display:flex; gap:8px; }
+.icon-btn { width:44px; height:44px; border-radius:15px; background:var(--card); border:2px solid var(--edge); box-shadow:var(--pop); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .08s, box-shadow .08s; }
+.icon-btn:active { transform:translateY(4px); box-shadow:0 0 0 var(--edge); }
+.icon-btn.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:0 4px 0 var(--accent-d); }
+.icon-btn svg, .ic svg { width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+.card { background:var(--card); border:2px solid var(--edge); box-shadow:var(--pop); border-radius:20px; padding:14px 16px; margin-bottom:14px; }
+.card.press { cursor:pointer; transition:transform .08s, box-shadow .08s, border-color .15s; }
+.card.press:active { transform:translateY(4px); box-shadow:0 0 0 var(--edge); border-color:var(--accent); }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:16px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; font-size:.82rem; padding:14px 18px; transition:transform .08s, box-shadow .08s; user-select:none; }
+.btn:active { transform:translateY(4px); }
+.btn-block { width:100%; }
+.btn-primary { background:var(--accent); color:var(--accent-ink); box-shadow:0 4px 0 var(--accent-d); }
+.btn-primary:active { box-shadow:0 0 0 var(--accent-d); }
+.btn-secondary { background:var(--card); color:var(--text); border:2px solid var(--edge); box-shadow:0 4px 0 var(--edge); }
+.btn-secondary:active { box-shadow:0 0 0 var(--edge); }
+.btn-red { background:var(--red); color:#fff; box-shadow:0 4px 0 var(--red-d); }
+.btn-red:active { box-shadow:0 0 0 var(--red-d); }
+.btn-sm { padding:10px 14px; font-size:.72rem; border-radius:14px; }
+.btn:disabled { background:var(--bg4) !important; color:var(--text3) !important; box-shadow:0 4px 0 var(--edge) !important; }
+.row2 { display:flex; gap:10px; } .row2 .btn { flex:1; }
+.stack { display:flex; flex-direction:column; gap:10px; }
+
+/* chips */
+.chiprow { display:flex; gap:8px; padding:2px 16px 12px; overflow-x:auto; scrollbar-width:none; }
+.chiprow::-webkit-scrollbar { display:none; }
+.chipb { padding:9px 14px; border-radius:14px; background:var(--card); border:2px solid var(--edge); box-shadow:0 3px 0 var(--edge); font-size:.8rem; font-weight:900; color:var(--text2); white-space:nowrap; flex-shrink:0; }
+.chipb:active { transform:translateY(3px); box-shadow:none; }
+.chipb.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:0 3px 0 var(--accent-d); }
+.search { margin:0 16px 12px; display:flex; }
+.search input { flex:1; background:var(--card); color:var(--text); border:2px solid var(--edge); border-radius:14px; padding:12px 14px; font-size:.95rem; outline:none; }
+.search input:focus { border-color:var(--accent); }
+
+/* grid */
+.gh { margin:14px 2px 8px; color:var(--text2); font-size:.74rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.gg { display:grid; grid-template-columns:repeat(var(--cols,3), 1fr); gap:5px; }
+.tile { position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:var(--bg3); border:2px solid var(--edge); padding:0; transition:transform .08s; }
+.tile:active { transform:scale(.95); }
+.tile img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+.tile .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:1.5rem; }
+.tile .bd { position:absolute; display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:8px; background:rgba(0,0,0,.55); color:#fff; font-size:.7rem; font-weight:900; }
+.tile .bd svg { width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.tile .b-cloud { right:5px; bottom:5px; }
+.tile .b-cloud.synced { color:var(--accent); } .tile .b-cloud.pending { color:var(--gold); } .tile .b-cloud.error { color:var(--red); }
+.tile .b-fav { left:5px; bottom:5px; color:var(--gold); }
+.tile .b-vid { left:5px; top:5px; }
+.tile .chk { position:absolute; right:6px; top:6px; width:24px; height:24px; border-radius:50%; border:2.5px solid #fff; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; color:var(--accent-ink); font-weight:900; font-size:.8rem; }
+.selmode .tile .chk { display:flex; }
+.tile.sel { border-color:var(--accent); transform:scale(.93); }
+.tile.sel .chk { background:var(--accent); border-color:var(--accent); }
+.more { display:block; margin:16px auto 0; }
+.empty { text-align:center; color:var(--text3); padding:56px 20px; font-weight:800; line-height:1.55; }
+.empty b { display:block; font-size:2.6rem; margin-bottom:8px; }
+
+/* albums */
+.agrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.album { padding:0; overflow:hidden; text-align:left; margin:0; }
+.album .cov { aspect-ratio:1.15; background:var(--bg3); display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:2rem; overflow:hidden; }
+.album .cov img { width:100%; height:100%; object-fit:cover; display:block; }
+.album .at { padding:10px 12px 11px; } .album .an { font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.album .ac { color:var(--text2); font-size:.76rem; font-weight:800; margin-top:1px; }
+.album.new .cov { background:var(--accent-soft); color:var(--accent); font-size:2.4rem; }
+
+/* meters / lists */
+.meter { height:14px; border-radius:99px; background:var(--bg4); overflow:hidden; margin:10px 0 6px; }
+.meter i { display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .4s; min-width:4px; }
+.meter i.warn { background:var(--orange); } .meter i.full { background:var(--red); }
+.mt { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+.mt b { font-size:1.35rem; font-weight:900; letter-spacing:-.02em; } .mt span { color:var(--text2); font-size:.8rem; font-weight:800; text-align:right; }
+.kv { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:2px solid var(--bg3); }
+.kv:last-child { border-bottom:none; } .kv .k { color:var(--text2); font-size:.86rem; font-weight:800; } .kv .v { font-weight:900; text-align:right; min-width:0; word-break:break-word; }
+.sec { margin:18px 2px 8px; color:var(--text2); font-size:.74rem; font-weight:900; letter-spacing:.09em; text-transform:uppercase; }
+.note { color:var(--text3); font-size:.78rem; font-weight:800; line-height:1.5; }
+.pill { display:inline-block; padding:3px 10px; border-radius:99px; font-size:.7rem; font-weight:900; letter-spacing:.05em; text-transform:uppercase; background:var(--accent-soft); color:var(--accent); }
+.pill.red { background:color-mix(in srgb, var(--red) 18%, transparent); color:var(--red); }
+.pill.gold { background:color-mix(in srgb, var(--gold) 18%, transparent); color:var(--gold); }
+
+/* settings */
+.swatches { display:flex; flex-wrap:wrap; gap:12px; padding:6px 0 4px; }
+.sw { width:44px; height:44px; border-radius:50%; border:3px solid var(--card); box-shadow:0 0 0 2px var(--edge), 0 4px 0 var(--edge); position:relative; }
+.sw:active { transform:translateY(3px); }
+.sw.on { box-shadow:0 0 0 3px var(--text), 0 4px 0 var(--edge); }
+.sw.on::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#111; font-weight:900; font-size:1.15rem; }
+.sw.custom { background:conic-gradient(#ff4b4b,#ffc800,#58cc02,#1cb0f6,#ce82ff,#ff4b4b); overflow:hidden; }
+.sw.custom input { position:absolute; inset:-10px; width:70px; height:70px; opacity:0; cursor:pointer; }
+.seg { display:flex; background:var(--bg3); border-radius:14px; padding:4px; gap:4px; }
+.seg button { flex:1; padding:9px 6px; border-radius:11px; font-size:.78rem; font-weight:900; color:var(--text2); white-space:nowrap; }
+.seg button.on { background:var(--accent); color:var(--accent-ink); box-shadow:0 3px 0 var(--accent-d); }
+.set-row { padding:12px 0; border-bottom:2px solid var(--bg3); } .set-row:last-child { border-bottom:none; }
+.set-row .sr-t { font-weight:900; margin-bottom:8px; } .set-row .sr-d { color:var(--text3); font-size:.76rem; font-weight:800; margin:-4px 0 8px; }
+.set-row.inline { display:flex; align-items:center; justify-content:space-between; gap:12px; } .set-row.inline .sr-t { margin:0; }
+.sw-switch { width:54px; height:32px; border-radius:99px; background:var(--bg4); position:relative; transition:background .15s; flex-shrink:0; }
+.sw-switch::after { content:''; position:absolute; top:4px; left:4px; width:24px; height:24px; border-radius:50%; background:#fff; transition:transform .15s; }
+.sw-switch.on { background:var(--accent); } .sw-switch.on::after { transform:translateX(22px); }
+
+/* nav + selection bar */
+#nav, #selbar { position:fixed; left:50%; transform:translateX(-50%); bottom:0; width:100%; max-width:640px; background:var(--bg2); border-top:2px solid var(--edge); padding:0 6px calc(env(safe-area-inset-bottom) + 6px); z-index:50; display:flex; align-items:flex-end; }
+#selbar { z-index:60; align-items:center; gap:8px; padding-top:10px; display:none; }
+#selbar.show { display:flex; }
+#selbar .cnt { font-weight:900; padding:0 8px; white-space:nowrap; }
+#selbar .sp { flex:1; }
+.nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 2px 4px; margin-top:6px; border-radius:16px; color:var(--text3); font-size:.62rem; font-weight:900; letter-spacing:.05em; text-transform:uppercase; border:2px solid transparent; }
+.nav-item svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:2.3; stroke-linecap:round; stroke-linejoin:round; }
+.nav-item.active { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }
+.nav-item.center { margin-top:-18px; }
+.nav-item.center .cbtn { width:62px; height:62px; border-radius:20px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; box-shadow:0 5px 0 var(--accent-d); transition:transform .08s, box-shadow .08s; }
+.nav-item.center .cbtn svg { width:30px; height:30px; stroke-width:3.2; }
+.nav-item.center:active .cbtn { transform:translateY(4px); box-shadow:0 1px 0 var(--accent-d); }
+
+/* sheet / toast / auth / viewer */
+.ov { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; }
+.ov.show { display:flex; }
+.sheet { width:100%; max-width:640px; max-height:88vh; overflow-y:auto; background:var(--bg2); border:2px solid var(--edge); border-bottom:none; border-radius:26px 26px 0 0; padding:20px 18px calc(env(safe-area-inset-bottom) + 18px); animation:up .22s ease; }
+@keyframes up { from { transform:translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
+.sheet h2 { margin:0 0 4px; font-size:1.25rem; font-weight:900; }
+.sheet .sd { color:var(--text2); font-size:.86rem; font-weight:800; margin:0 0 14px; line-height:1.4; white-space:pre-line; }
+.sheet input[type=text], .field { width:100%; background:var(--card); color:var(--text); border:2px solid var(--edge); border-radius:14px; padding:13px 14px; font-size:1rem; outline:none; margin-bottom:12px; }
+.sheet input[type=text]:focus, .field:focus { border-color:var(--accent); }
+.lbl { color:var(--text2); font-size:.72rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; margin:2px 0 8px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+.prog { height:12px; border-radius:99px; background:var(--bg4); overflow:hidden; margin:12px 0 8px; } .prog i { display:block; height:100%; width:0; background:var(--accent); border-radius:99px; transition:width .15s; }
+#toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 16px); transform:translate(-50%,-30px); opacity:0; pointer-events:none; background:var(--card); border:2px solid var(--edge); box-shadow:var(--pop); padding:11px 18px; border-radius:99px; font-weight:900; font-size:.86rem; z-index:400; transition:transform .2s, opacity .2s; max-width:90%; text-align:center; }
+#toast.show { transform:translate(-50%,0); opacity:1; }
+#auth { position:fixed; inset:0; z-index:300; background:var(--bg); display:none; align-items:center; justify-content:center; padding:24px; overflow-y:auto; }
+#auth.show { display:flex; }
+.auth-box { width:100%; max-width:380px; text-align:center; }
+.logo { width:84px; height:84px; border-radius:26px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; box-shadow:0 6px 0 var(--accent-d); }
+.logo svg { width:46px; height:46px; fill:currentColor; }
+.auth-box h1 { margin:0 0 4px; font-size:2rem; font-weight:900; letter-spacing:-.02em; }
+.auth-box p { margin:0 0 20px; color:var(--text2); font-size:.9rem; font-weight:800; line-height:1.4; }
+.auth-err { min-height:1.3em; color:var(--red); font-size:.84rem; font-weight:800; margin-bottom:10px; }
+#viewer { position:fixed; inset:0; z-index:150; background:#000; display:none; flex-direction:column; user-select:none; -webkit-user-select:none; }
+#viewer.show { display:flex; }
+.vtop, .vbot { position:absolute; left:0; right:0; display:flex; align-items:center; gap:10px; padding:12px 14px; z-index:3; transition:opacity .2s; }
+.vtop { top:0; padding-top:calc(env(safe-area-inset-top) + 12px); background:linear-gradient(rgba(0,0,0,.7), transparent); }
+.vbot { bottom:0; padding-bottom:calc(env(safe-area-inset-bottom) + 14px); background:linear-gradient(transparent, rgba(0,0,0,.75)); justify-content:space-around; }
+#viewer.bare .vtop, #viewer.bare .vbot { opacity:0; pointer-events:none; }
+.vbtn { width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; display:flex; align-items:center; justify-content:center; }
+.vbtn svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+.vbtn.on { color:var(--gold); } .vbtn.on svg { fill:currentColor; }
+.vtitle { flex:1; min-width:0; color:#fff; } .vtitle b { display:block; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .vtitle span { font-size:.76rem; color:#cbd5e1; font-weight:800; }
+#vstage { flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; touch-action:none; }
+#vstage img, #vstage video { max-width:100%; max-height:100%; object-fit:contain; transition:transform .2s; transform-origin:center; }
+.vspin { position:absolute; color:#fff; font-weight:900; z-index:2; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- FOTO'S -->
+  <section class="screen active" id="s-photos">
+    <div class="hdr">
+      <div><h1 id="p-title">Drive</h1><div class="sub" id="p-sub"></div></div>
+      <div class="hdr-btns">
+        <button class="icon-btn" id="b-search" onclick="toggleSearch()" aria-label="Zoeken"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></button>
+        <button class="icon-btn" id="b-select" onclick="toggleSelect()" aria-label="Selecteren"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.5l3 3 5-6"/></svg></span></button>
+      </div>
+    </div>
+    <div class="search hidden" id="searchbar"><input type="text" id="q" placeholder="Zoek op naam…" autocomplete="off"></div>
+    <div class="chiprow" id="chips"></div>
+    <div class="scroll" id="grid"></div>
+  </section>
+
+  <!-- ALBUMS -->
+  <section class="screen" id="s-albums">
+    <div class="hdr"><div><h1>Albums</h1><div class="sub" id="a-sub"></div></div></div>
+    <div class="scroll" id="albums-body"></div>
+  </section>
+
+  <!-- CLOUD -->
+  <section class="screen" id="s-cloud">
+    <div class="hdr"><div><h1>Cloud</h1><div class="sub" id="c-sub"></div></div><button class="icon-btn" onclick="refreshCloud()" aria-label="Verversen"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/></svg></span></button></div>
+    <div class="scroll" id="cloud-body"></div>
+  </section>
+
+  <!-- OPTIES -->
+  <section class="screen" id="s-set">
+    <div class="hdr"><div><h1>Opties</h1></div></div>
+    <div class="scroll" id="set-body"></div>
+  </section>
+
+  <nav id="nav">
+    <button class="nav-item active" data-s="photos" onclick="show('photos')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg><span>Foto’s</span></button>
+    <button class="nav-item" data-s="albums" onclick="show('albums')"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Albums</span></button>
+    <button class="nav-item center" onclick="openUpload()"><div class="cbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><span style="color:var(--text3)">Upload</span></button>
+    <button class="nav-item" data-s="cloud" onclick="show('cloud')"><svg viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 010-9 6 6 0 0111.5 1.6A3.7 3.7 0 0118 18z"/></svg><span>Cloud</span></button>
+    <button class="nav-item" data-s="set" onclick="show('set')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg><span>Opties</span></button>
+  </nav>
+  <div id="selbar">
+    <button class="icon-btn" onclick="toggleSelect(false)" aria-label="Annuleren"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
+    <span class="cnt" id="sel-cnt">0</span><span class="sp"></span>
+    <button class="icon-btn" onclick="selAction('sync')" aria-label="Naar cloud"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 010-9 6 6 0 0111.5 1.6A3.7 3.7 0 0118 18z"/><path d="M12 15V10M9.5 12l2.5-2.5 2.5 2.5"/></svg></span></button>
+    <button class="icon-btn" onclick="selAction('fav')" aria-label="Favoriet"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span></button>
+    <button class="icon-btn" onclick="selAction('album')" aria-label="Album"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></span></button>
+    <button class="icon-btn" onclick="selAction('del')" aria-label="Verwijderen" style="color:var(--red)"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></span></button>
+  </div>
+</div>
+
+<!-- viewer -->
+<div id="viewer">
+  <div class="vtop"><button class="vbtn" onclick="closeViewer()" aria-label="Sluiten"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="vtitle"><b id="v-name"></b><span id="v-meta"></span></div><button class="vbtn" id="v-fav" onclick="vFav()" aria-label="Favoriet"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></button></div>
+  <div id="vstage"></div>
+  <div class="vbot">
+    <button class="vbtn" onclick="vSync()" aria-label="Cloud" id="v-cloud"><svg viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 010-9 6 6 0 0111.5 1.6A3.7 3.7 0 0118 18z"/></svg></button>
+    <button class="vbtn" onclick="vAlbum()" aria-label="Album"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></button>
+    <button class="vbtn" onclick="vShare()" aria-label="Delen"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></button>
+    <button class="vbtn" onclick="vInfo()" aria-label="Info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
+    <button class="vbtn" onclick="vDelete()" aria-label="Verwijderen" style="color:#ff6b6b"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+  </div>
+</div>
+
+<div id="auth">
+  <div class="auth-box">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M7 19a5 5 0 010-10 7 7 0 0113.5 2A4.2 4.2 0 0119 19z"/></svg></div>
+    <h1>DriveFlow</h1>
+    <p id="auth-p">Log in of maak een account om je foto’s op al je apparaten te zien.</p>
+    <input class="field" id="au-name" type="text" placeholder="Gebruikersnaam" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <input class="field" id="au-pw" type="password" placeholder="Wachtwoord" autocomplete="current-password">
+    <div class="auth-err" id="au-err"></div>
+    <div class="stack">
+      <button class="btn btn-primary btn-block" id="au-login" onclick="doAuth(false)">Inloggen</button>
+      <button class="btn btn-secondary btn-block" id="au-reg" onclick="doAuth(true)">Account maken</button>
+      <button class="btn btn-secondary btn-block" id="au-local" onclick="goLocal()" style="border-style:dashed">Zonder account (alleen deze telefoon)</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+<input type="file" id="f-pick" accept="image/*,video/*" multiple class="hidden">
+<input type="file" id="f-cam" accept="image/*,video/*" capture="environment" class="hidden">
+
+<script>
+'use strict';
+/* ============================ helpers ============================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function fmtBytes(n) {
+  n = Number(n) || 0; const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2)) + ' ' + u[i];
+}
+let _tt; function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), 2200); }
+function openSheet(html) { $('sheet').innerHTML = html; $('ov').classList.add('show'); $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); }; }
+function closeSheet() { $('ov').classList.remove('show'); }
+function confirmSheet(title, msg, okText, danger) {
+  return new Promise(res => {
+    openSheet(`<h2>${esc(title)}</h2><p class="sd">${esc(msg)}</p><div class="row2"><button class="btn btn-secondary" id="cf-no">Annuleren</button><button class="btn ${danger === false ? 'btn-primary' : 'btn-red'}" id="cf-yes">${esc(okText || 'OK')}</button></div>`);
+    $('cf-no').onclick = () => { closeSheet(); res(false); };
+    $('cf-yes').onclick = () => { closeSheet(); res(true); };
+    $('ov').onclick = e => { if (e.target === $('ov')) { closeSheet(); res(false); } };
+  });
+}
+function promptSheet(title, desc, value, ok) {
+  return new Promise(res => {
+    openSheet(`<h2>${esc(title)}</h2>${desc ? `<p class="sd">${esc(desc)}</p>` : ''}<input type="text" id="pr-in" maxlength="40" value="${esc(value || '')}" autocomplete="off"><div class="row2"><button class="btn btn-secondary" id="pr-no">Annuleren</button><button class="btn btn-primary" id="pr-ok">${esc(ok || 'OK')}</button></div>`);
+    const done = v => { closeSheet(); res(v); };
+    $('pr-no').onclick = () => done(null); $('pr-ok').onclick = () => done($('pr-in').value.trim());
+    $('pr-in').onkeydown = e => { if (e.key === 'Enter') done($('pr-in').value.trim()); };
+    $('ov').onclick = e => { if (e.target === $('ov')) done(null); };
+    setTimeout(() => { try { $('pr-in').focus(); $('pr-in').select(); } catch (e) {} }, 80);
+  });
+}
+
+/* ============================ settings / theme ============================ */
+const PRESETS = ['#1cb0f6', '#58cc02', '#ce82ff', '#ff9600', '#ff4b4b', '#00cd9c', '#ff86d0', '#c7d0dc'];
+const QUAL = { high: { dim: 2560, q: .85, label: 'Hoog · 2560px' }, normal: { dim: 2048, q: .8, label: 'Normaal · 2048px' }, small: { dim: 1600, q: .7, label: 'Zuinig · 1600px' } };
+const S = Object.assign({ theme: 'dark', accent: '#1cb0f6', cols: 3, autoSync: true, wifiOnly: false, quality: 'normal', cloudGB: 1, autoImport: true }, lsGet('df_settings', {}));
+const saveS = () => lsSet('df_settings', S);
+function lum(hex) { const n = parseInt(hex.slice(1), 16); const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; }
+function applyAccent(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) hex = '#1cb0f6'; S.accent = hex;
+  const r = document.documentElement.style;
+  r.setProperty('--accent', hex); r.setProperty('--accent2', `color-mix(in srgb, ${hex} 70%, #fff)`); r.setProperty('--accent-ink', lum(hex) > .35 ? '#111' : '#fff');
+  $('meta-theme').content = S.theme === 'dark' ? '#0b0f1a' : '#f6f8fb';
+}
+function applyTheme(t) { S.theme = t === 'light' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', S.theme); applyAccent(S.accent); saveS(); }
+function applyCols() { document.documentElement.style.setProperty('--cols', S.cols); }
+
+/* ============================ local database (IndexedDB) ============================ */
+let DBH = null;
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('driveflow', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('items', { keyPath: 'id' }); d.createObjectStore('blobs', { keyPath: 'id' }); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const dbStore = (n, m) => DBH.transaction(n, m || 'readonly').objectStore(n);
+const dbAll = n => rq(dbStore(n).getAll());
+const dbGet = (n, k) => rq(dbStore(n).get(k));
+const dbPut = (n, v) => rq(dbStore(n, 'readwrite').put(v));
+const dbDel = (n, k) => rq(dbStore(n, 'readwrite').delete(k));
+
+const ITEMS = new Map();       // id -> item (metadata + small thumbnail)
+let ALBUMS = lsGet('df_albums', []);   // [{id,name,created,deleted?}]
+const saveAlbums = () => lsSet('df_albums', ALBUMS);
+const saveItem = it => dbPut('items', it).catch(e => console.warn('save item', e));
+
+/* ============================ navigation / state ============================ */
+let cur = 'photos';
+const F = { kind: 'all', fav: false, album: '', q: '' };   // filters
+let selMode = false; const SEL = new Set();
+function show(name) {
+  if (selMode) toggleSelect(false);
+  cur = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 's-' + name));
+  document.querySelectorAll('.nav-item[data-s]').forEach(n => n.classList.toggle('active', n.dataset.s === name));
+  if (name === 'photos') renderPhotos(); if (name === 'albums') renderAlbums(); if (name === 'cloud') renderCloud(); if (name === 'set') renderSettings();
+}
+
+/* ============================ photos screen ============================ */
+function visible() {
+  let a = [...ITEMS.values()];
+  if (F.kind !== 'all') a = a.filter(i => i.kind === F.kind);
+  if (F.fav) a = a.filter(i => i.fav);
+  if (F.album) a = a.filter(i => i.album === F.album);
+  if (F.q) { const q = F.q.toLowerCase(); a = a.filter(i => i.name.toLowerCase().includes(q)); }
+  return a.sort((x, y) => (y.date || 0) - (x.date || 0));
+}
+function dayLabel(ts) {
+  const d = new Date(ts), n = new Date(), d0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((d0(n) - d0(d)) / 864e5);
+  if (diff === 0) return 'Vandaag'; if (diff === 1) return 'Gisteren';
+  return d.toLocaleDateString('nl', { weekday: 'short', day: 'numeric', month: 'long', year: d.getFullYear() === n.getFullYear() ? undefined : 'numeric' });
+}
+let GRID_LIMIT = 240, VIEW = [];
+const CLOUD_IC = { synced: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>', pending: '<svg viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></svg>', error: '<svg viewBox="0 0 24 24"><path d="M12 7v6M12 17h.01"/></svg>' };
+function renderChips() {
+  const al = ALBUMS.filter(a => !a.deleted).find(a => a.id === F.album);
+  const c = (on, label, fn) => `<button class="chipb ${on ? 'on' : ''}" onclick="${fn}">${label}</button>`;
+  $('chips').innerHTML = c(F.kind === 'all' && !F.fav, 'Alles', "setFilter('all')") + c(F.fav, '★ Favorieten', 'setFilter(\'fav\')') + c(F.kind === 'image', 'Foto’s', "setFilter('image')") + c(F.kind === 'video', 'Video’s', "setFilter('video')") + (al ? c(true, '▣ ' + esc(al.name) + ' ✕', "setAlbumFilter('')") : '');
+}
+function setFilter(k) { if (k === 'fav') { F.fav = !F.fav; } else { F.kind = k; F.fav = false; } GRID_LIMIT = 240; renderPhotos(); }
+function setAlbumFilter(id) { F.album = id; GRID_LIMIT = 240; if (cur !== 'photos') show('photos'); else renderPhotos(); }
+function toggleSearch() { const b = $('searchbar'); b.classList.toggle('hidden'); $('b-search').classList.toggle('on', !b.classList.contains('hidden')); if (b.classList.contains('hidden')) { F.q = ''; $('q').value = ''; renderPhotos(); } else $('q').focus(); }
+$('q').addEventListener('input', e => { F.q = e.target.value.trim(); GRID_LIMIT = 240; renderPhotos(); });
+function setSub() {
+  const n = ITEMS.size; let size = 0; ITEMS.forEach(i => { if (i.hasBlob) size += i.size || 0; });
+  const al = ALBUMS.find(a => a.id === F.album && !a.deleted);
+  $('p-title').textContent = al ? al.name + ' ✎' : 'Drive';
+  $('p-sub').textContent = SYNC.running ? `☁ Synchroniseren ${SYNC.done}/${SYNC.total}…` : `${n} ${n === 1 ? 'item' : 'items'} · ${fmtBytes(size)} op dit toestel`;
+}
+function renderPhotos() {
+  renderChips(); setSub();
+  VIEW = visible();
+  const g = $('grid');
+  if (!ITEMS.size) { g.innerHTML = `<div class="empty"><b>🖼️</b>Nog niks hier.<br>Tik op <b style="display:inline;font-size:inherit">+</b> om foto’s of video’s toe te voegen.</div>`; return; }
+  if (!VIEW.length) { g.innerHTML = `<div class="empty"><b>🔍</b>Niks gevonden met dit filter.</div>`; return; }
+  const part = VIEW.slice(0, GRID_LIMIT); let html = '', lastDay = '', open = false;
+  part.forEach(it => {
+    const dl = dayLabel(it.date || it.added);
+    if (dl !== lastDay) { if (open) html += '</div>'; html += `<div class="gh">${esc(dl)}</div><div class="gg">`; lastDay = dl; open = true; }
+    html += `<button class="tile ${SEL.has(it.id) ? 'sel' : ''}" data-id="${it.id}">${it.thumb ? `<img src="${it.thumb}" alt="" loading="lazy" decoding="async">` : '<div class="ph">🖼️</div>'}${it.kind === 'video' ? '<span class="bd b-vid"><svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M8 5v14l11-7z"/></svg></span>' : ''}${it.fav ? '<span class="bd b-fav">★</span>' : ''}${CLOUD_IC[it.cloud] ? `<span class="bd b-cloud ${it.cloud}">${CLOUD_IC[it.cloud]}</span>` : ''}<span class="chk">✓</span></button>`;
+  });
+  if (open) html += '</div>';
+  if (VIEW.length > GRID_LIMIT) html += `<button class="btn btn-secondary more" onclick="GRID_LIMIT+=240;renderPhotos()">Meer laden (${VIEW.length - GRID_LIMIT})</button>`;
+  g.innerHTML = html; g.classList.toggle('selmode', selMode);
+}
+/* tile interaction: tap = open / toggle, long press = select */
+(function () {
+  const g = $('grid'); let timer = null, long = false, sx = 0, sy = 0;
+  const tileOf = e => e.target.closest && e.target.closest('.tile');
+  g.addEventListener('touchstart', e => { const t = tileOf(e); if (!t) return; long = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY; timer = setTimeout(() => { long = true; if (!selMode) toggleSelect(true); toggleSel(t.dataset.id); if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) {} }, 480); }, { passive: true });
+  g.addEventListener('touchmove', e => { if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) clearTimeout(timer); }, { passive: true });
+  g.addEventListener('touchend', () => clearTimeout(timer)); g.addEventListener('touchcancel', () => clearTimeout(timer));
+  g.addEventListener('contextmenu', e => { if (tileOf(e)) e.preventDefault(); });
+  g.addEventListener('click', e => { const t = tileOf(e); if (!t) return; if (long) { long = false; return; } if (selMode) toggleSel(t.dataset.id); else openViewer(t.dataset.id); });
+})();
+function toggleSelect(on) {
+  selMode = on === undefined ? !selMode : !!on; if (!selMode) SEL.clear();
+  $('selbar').classList.toggle('show', selMode); $('b-select').classList.toggle('on', selMode); $('grid').classList.toggle('selmode', selMode); $('sel-cnt').textContent = SEL.size; renderPhotos();
+}
+function toggleSel(id) {
+  if (SEL.has(id)) SEL.delete(id); else SEL.add(id);
+  const t = $('grid').querySelector(`.tile[data-id="${id}"]`); if (t) t.classList.toggle('sel', SEL.has(id)); $('sel-cnt').textContent = SEL.size;
+}
+async function selAction(a) {
+  const ids = [...SEL]; if (!ids.length) { toast('Selecteer eerst iets'); return; }
+  if (a === 'sync') { syncQueue(ids, true); toggleSelect(false); }
+  if (a === 'fav') { const all = ids.every(i => ITEMS.get(i).fav); ids.forEach(i => setFav(i, !all)); toggleSelect(false); }
+  if (a === 'album') { const id = await pickAlbum(); if (id !== undefined) { ids.forEach(i => setAlbum(i, id)); toggleSelect(false); toast('Verplaatst'); } }
+  if (a === 'del') { if (await deleteFlow(ids)) toggleSelect(false); }
+}
+
+/* ============================ file add / upload ============================ */
+function openUpload() {
+  openSheet(`<h2>Toevoegen</h2><p class="sd">Foto’s en video’s worden op dit toestel bewaard${CLOUD.uid ? ' en foto’s gaan daarna naar je cloud.' : '. Log in via het Cloud-tabblad om ze ook op andere apparaten te zien.'}</p>
+    <div class="stack"><button class="btn btn-primary btn-block" onclick="closeSheet();$('f-pick').click()">🖼️ Foto’s / video’s kiezen</button><button class="btn btn-secondary btn-block" onclick="closeSheet();$('f-cam').click()">📷 Camera</button><button class="btn btn-secondary btn-block" onclick="closeSheet()">Annuleren</button></div>`);
+}
+$('f-pick').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+$('f-cam').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
+
+function imgInfo(file) {
+  return createImageBitmap(file, { imageOrientation: 'from-image' }).then(bmp => {
+    const sc = Math.min(1, 220 / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    const out = { thumb: c.toDataURL('image/jpeg', .65), w: bmp.width, h: bmp.height }; if (bmp.close) bmp.close(); return out;
+  }).catch(() => ({ thumb: null, w: 0, h: 0, bad: true }));
+}
+function videoInfo(file) {
+  return new Promise(res => {
+    const v = document.createElement('video'), url = URL.createObjectURL(file); let fin = false;
+    const done = o => { if (fin) return; fin = true; URL.revokeObjectURL(url); res(o); };
+    v.muted = true; v.playsInline = true; v.preload = 'metadata'; v.src = url;
+    v.onloadeddata = () => { try { v.currentTime = Math.min(.5, (v.duration || 1) / 2); } catch (e) { done({ thumb: null, w: 0, h: 0 }); } };
+    v.onseeked = () => { try { const sc = Math.min(1, 220 / Math.max(v.videoWidth, v.videoHeight)), w = Math.max(1, Math.round(v.videoWidth * sc)), h = Math.max(1, Math.round(v.videoHeight * sc)); const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h); done({ thumb: c.toDataURL('image/jpeg', .65), w: v.videoWidth, h: v.videoHeight }); } catch (e) { done({ thumb: null, w: 0, h: 0 }); } };
+    v.onerror = () => done({ thumb: null, w: 0, h: 0 }); setTimeout(() => done({ thumb: null, w: 0, h: 0 }), 7000);
+  });
+}
+async function storageInfo() { try { const e = await navigator.storage.estimate(); return { usage: e.usage || 0, quota: e.quota || 0 }; } catch (e) { return null; } }
+let ADDING = false;
+async function addFiles(files) {
+  files = files.filter(f => /^image\//.test(f.type) || /^video\//.test(f.type) || /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|mp4|mov|m4v|webm|3gp)$/i.test(f.name));
+  if (!files.length) { toast('Geen foto’s of video’s gekozen'); return; }
+  if (ADDING) { toast('Even wachten, bezig met uploaden…'); return; }
+  ADDING = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  const total = files.length; let added = 0, dup = 0, bad = 0, full = false; const newIds = [];
+  openSheet(`<h2>Toevoegen…</h2><p class="sd" id="up-t">0 / ${total}</p><div class="prog"><i id="up-b"></i></div>`);
+  const keys = new Set([...ITEMS.values()].map(i => i.key));
+  for (let n = 0; n < total; n++) {
+    const f = files[n]; $('up-t').textContent = `${n + 1} / ${total} · ${f.name}`; $('up-b').style.width = Math.round(n / total * 100) + '%';
+    const key = `${f.name}|${f.size}|${f.lastModified}`; if (keys.has(key)) { dup++; continue; }
+    const si = await storageInfo(); if (si && si.quota && si.usage + f.size > si.quota * .97) { full = true; break; }
+    const isVid = /^video\//.test(f.type) || /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.name);
+    const info = isVid ? await videoInfo(f) : await imgInfo(f);
+    const id = uid(), now = Date.now();
+    const canCloud = !isVid && !info.bad;
+    const it = { id, key, name: f.name, mime: f.type || (isVid ? 'video/mp4' : 'image/jpeg'), size: f.size, date: f.lastModified || now, added: now, w: info.w, h: info.h, thumb: info.thumb, kind: isVid ? 'video' : 'image', album: F.album || '', fav: false, hasBlob: true, cloud: canCloud ? 'pending' : 'none', cloudSize: 0, updatedAt: now };
+    try { await dbPut('blobs', { id, blob: f }); await dbPut('items', it); } catch (e) { full = true; break; }
+    ITEMS.set(id, it); keys.add(key); added++; newIds.push(id); if (info.bad) bad++;
+  }
+  $('up-b').style.width = '100%'; await sleep(150); closeSheet(); ADDING = false;
+  renderPhotos(); if (cur === 'albums') renderAlbums();
+  const bits = []; if (added) bits.push(added + ' toegevoegd'); if (dup) bits.push(dup + ' al aanwezig'); if (bad) bits.push(bad + ' alleen lokaal (niet leesbaar voor cloud)');
+  toast(full ? 'Opslag op dit toestel is vol' + (added ? ` · ${added} toegevoegd` : '') : (bits.join(' · ') || 'Niks toegevoegd'));
+  if (newIds.length && S.autoSync && canAutoSync()) syncQueue(newIds);
+}
+
+/* ============================ albums ============================ */
+function liveAlbums() { return ALBUMS.filter(a => !a.deleted); }
+function albumCount(id) { let n = 0; ITEMS.forEach(i => { if (i.album === id) n++; }); return n; }
+function renderAlbums() {
+  const al = liveAlbums(); $('a-sub').textContent = al.length + ' albums';
+  const cover = id => { let best = null; ITEMS.forEach(i => { if (i.album === id && i.thumb && (!best || (i.date || 0) > (best.date || 0))) best = i; }); return best && best.thumb; };
+  $('albums-body').innerHTML = `<div class="agrid"><button class="card press album new" onclick="newAlbum()"><div class="cov">＋</div><div class="at"><div class="an">Nieuw album</div><div class="ac">Maak een map</div></div></button>` +
+    al.map(a => { const c = cover(a.id); return `<button class="card press album" onclick="setAlbumFilter('${a.id}')"><div class="cov">${c ? `<img src="${c}" alt="">` : '📁'}</div><div class="at"><div class="an">${esc(a.name)}</div><div class="ac">${albumCount(a.id)} items</div></div></button>`; }).join('') + `</div>` +
+    (al.length ? `<p class="note" style="margin-top:14px">Open een album en gebruik daar ✎ in de titelbalk om het te hernoemen of te verwijderen.</p>` : '');
+}
+async function newAlbum() {
+  const name = await promptSheet('Nieuw album', '', '', 'Maken'); if (!name) return;
+  const a = { id: uid(), name, created: Date.now() }; ALBUMS.push(a); saveAlbums(); pushAlbum(a); renderAlbums(); toast('Album gemaakt'); return a;
+}
+function pickAlbum() {
+  return new Promise(res => {
+    const al = liveAlbums();
+    openSheet(`<h2>Verplaatsen naar album</h2><div class="chips" style="margin-top:12px"><button class="chipb" data-a="">Geen album</button>${al.map(a => `<button class="chipb" data-a="${a.id}">${esc(a.name)}</button>`).join('')}<button class="chipb on" data-a="__new">＋ Nieuw</button></div><button class="btn btn-secondary btn-block" id="pa-no">Annuleren</button>`);
+    $('sheet').querySelectorAll('.chipb').forEach(b => b.onclick = async () => { const v = b.dataset.a; closeSheet(); if (v === '__new') { const a = await newAlbum(); res(a ? a.id : undefined); } else res(v); });
+    $('pa-no').onclick = () => { closeSheet(); res(undefined); }; $('ov').onclick = e => { if (e.target === $('ov')) { closeSheet(); res(undefined); } };
+  });
+}
+function setAlbum(id, album) { const it = ITEMS.get(id); if (!it) return; it.album = album; it.updatedAt = Date.now(); saveItem(it); pushMeta(it); renderPhotos(); }
+function setFav(id, v) { const it = ITEMS.get(id); if (!it) return; it.fav = !!v; it.updatedAt = Date.now(); saveItem(it); pushMeta(it); renderPhotos(); }
+async function albumMenu() {
+  const a = ALBUMS.find(x => x.id === F.album); if (!a) return;
+  openSheet(`<h2>${esc(a.name)}</h2><p class="sd">${albumCount(a.id)} items · de foto’s zelf blijven altijd bewaard.</p><div class="stack"><button class="btn btn-primary btn-block" id="am-ren">✎ Hernoemen</button><button class="btn btn-red btn-block" id="am-del">Album verwijderen</button><button class="btn btn-secondary btn-block" onclick="closeSheet()">Sluiten</button></div>`);
+  $('am-ren').onclick = async () => { const n = await promptSheet('Album hernoemen', '', a.name, 'Opslaan'); if (n) { a.name = n; saveAlbums(); pushAlbum(a); renderPhotos(); } };
+  $('am-del').onclick = async () => { if (await confirmSheet('Album verwijderen?', 'De foto’s en video’s blijven bewaard, alleen het album verdwijnt.', 'Verwijder')) { ITEMS.forEach(i => { if (i.album === a.id) { i.album = ''; i.updatedAt = Date.now(); saveItem(i); pushMeta(i); } }); a.deleted = true; saveAlbums(); pushAlbum(a); F.album = ''; show('albums'); toast('Album verwijderd'); } };
+}
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#p-title') && F.album) albumMenu(); });
+
+/* ============================ viewer ============================ */
+let vIdx = -1, vUrl = null, vId = null, zoomed = false, lastTap = 0;
+function revokeV() { if (vUrl) { URL.revokeObjectURL(vUrl); vUrl = null; } }
+async function openViewer(id) { vIdx = VIEW.findIndex(i => i.id === id); if (vIdx < 0) return; $('viewer').classList.add('show'); $('viewer').classList.remove('bare'); history.pushState({ v: 1 }, ''); await loadV(); }
+function closeViewer(fromPop) { $('viewer').classList.remove('show'); $('vstage').innerHTML = ''; revokeV(); vId = null; if (!fromPop && history.state && history.state.v) history.back(); }
+window.addEventListener('popstate', () => { if ($('viewer').classList.contains('show')) closeViewer(true); });
+async function loadV() {
+  const it = VIEW[vIdx]; if (!it) return closeViewer(); vId = it.id; zoomed = false; revokeV();
+  $('v-name').textContent = it.name; $('v-meta').textContent = `${vIdx + 1} / ${VIEW.length} · ${new Date(it.date).toLocaleDateString('nl', { day: 'numeric', month: 'short', year: 'numeric' })} · ${fmtBytes(it.size)}`;
+  $('v-fav').classList.toggle('on', !!it.fav); $('v-cloud').style.color = it.cloud === 'synced' ? 'var(--accent)' : it.cloud === 'pending' ? 'var(--gold)' : '#fff';
+  const st = $('vstage'); st.innerHTML = it.thumb ? `<img src="${it.thumb}" style="filter:blur(2px)">` : ''; st.insertAdjacentHTML('beforeend', '<div class="vspin">Laden…</div>');
+  let blob = null; const mine = it.id;
+  try { const b = await dbGet('blobs', it.id); blob = b && b.blob; } catch (e) {}
+  if (!blob && it.cloud === 'synced') { blob = await fetchCloudBlob(it).catch(() => null); }
+  if (vId !== mine) return;
+  if (!blob) { st.innerHTML = `<div style="color:#fff;text-align:center;padding:30px;line-height:1.5">${it.thumb ? `<img src="${it.thumb}" style="max-width:100%;border-radius:12px;margin-bottom:12px"><br>` : ''}Kan het bestand niet laden.<br><span style="color:#94a3b8;font-size:.85rem">Controleer je verbinding en probeer opnieuw.</span></div>`; return; }
+  vUrl = URL.createObjectURL(blob);
+  st.innerHTML = it.kind === 'video' ? `<video src="${vUrl}" controls playsinline autoplay></video>` : `<img src="${vUrl}" alt="">`;
+}
+function vStep(d) { const n = vIdx + d; if (n < 0 || n >= VIEW.length) return; vIdx = n; loadV(); }
+(function () {
+  const st = $('vstage'); let x0 = 0, y0 = 0, t0 = 0;
+  st.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+  st.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.3 && !zoomed) { vStep(dx < 0 ? 1 : -1); return; }
+    if (dy > 110 && Math.abs(dx) < 60 && !zoomed) { closeViewer(); return; }
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 300) {
+      if (e.target.closest && e.target.closest('video')) return;
+      const now = Date.now();
+      if (now - lastTap < 320) { const im = st.querySelector('img'); if (im) { zoomed = !zoomed; const r = im.getBoundingClientRect(); im.style.transformOrigin = `${e.changedTouches[0].clientX - r.left}px ${e.changedTouches[0].clientY - r.top}px`; im.style.transform = zoomed ? 'scale(2.4)' : 'none'; } lastTap = 0; }
+      else { lastTap = now; setTimeout(() => { if (lastTap && Date.now() - lastTap >= 300) { $('viewer').classList.toggle('bare'); lastTap = 0; } }, 320); }
+    }
+  });
+  st.addEventListener('click', e => { if (e.pointerType === 'mouse' || !('ontouchstart' in window)) { if (!(e.target.closest && e.target.closest('video'))) $('viewer').classList.toggle('bare'); } });
+  document.addEventListener('keydown', e => { if (!$('viewer').classList.contains('show')) return; if (e.key === 'ArrowRight') vStep(1); else if (e.key === 'ArrowLeft') vStep(-1); else if (e.key === 'Escape') closeViewer(); });
+})();
+function vFav() { const it = ITEMS.get(vId); if (!it) return; setFav(it.id, !it.fav); $('v-fav').classList.toggle('on', it.fav); }
+async function vAlbum() { const id = await pickAlbum(); if (id !== undefined && vId) { setAlbum(vId, id); toast('Verplaatst'); } }
+function vSync() { const it = ITEMS.get(vId); if (!it) return; if (it.kind !== 'image') { toast('Video’s blijven op dit toestel'); return; } if (it.cloud === 'synced') { toast('Staat al in je cloud'); return; } syncQueue([it.id], true); }
+async function vShare() {
+  const it = ITEMS.get(vId); if (!it) return; const b = await dbGet('blobs', it.id).catch(() => null); let blob = b && b.blob; if (!blob) { toast('Bestand niet op dit toestel'); return; }
+  const file = new File([blob], it.name, { type: it.mime });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = it.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+function vInfo() {
+  const it = ITEMS.get(vId); if (!it) return; const al = ALBUMS.find(a => a.id === it.album && !a.deleted);
+  const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${esc(v || '—')}</span></div>`;
+  openSheet(`<h2>Details</h2><div class="card" style="box-shadow:none;margin-top:10px">${kv('Naam', it.name)}${kv('Datum', new Date(it.date).toLocaleString('nl'))}${kv('Grootte', fmtBytes(it.size))}${kv('Afmeting', it.w ? it.w + ' × ' + it.h : '')}${kv('Type', it.mime)}${kv('Album', al && al.name)}${kv('Cloud', it.cloud === 'synced' ? 'Opgeslagen (' + fmtBytes(it.cloudSize) + ')' : it.cloud === 'pending' ? 'Wacht op upload' : it.cloud === 'error' ? 'Mislukt' : 'Alleen op dit toestel')}${kv('Op toestel', it.hasBlob ? 'Origineel' : 'Alleen in cloud')}</div><button class="btn btn-secondary btn-block" onclick="closeSheet()">Sluiten</button>`);
+}
+async function vDelete() { const id = vId; if (!id) return; if (await deleteFlow([id])) { VIEW = visible(); if (!VIEW.length) closeViewer(); else { vIdx = Math.min(vIdx, VIEW.length - 1); loadV(); } } }
+
+/* ============================ delete / free space ============================ */
+async function deleteFlow(ids) {
+  const items = ids.map(i => ITEMS.get(i)).filter(Boolean); if (!items.length) return false;
+  const inCloud = items.filter(i => i.cloud === 'synced' && CLOUD.uid);
+  const n = items.length, w = n === 1 ? 'dit item' : n + ' items';
+  return new Promise(res => {
+    if (!inCloud.length) {
+      confirmSheet('Verwijderen?', `${w[0].toUpperCase() + w.slice(1)} wordt van dit toestel verwijderd.`, 'Verwijder').then(async ok => { if (ok) { await removeLocal(items); res(true); } else res(false); }); return;
+    }
+    openSheet(`<h2>Verwijderen?</h2><p class="sd">${inCloud.length === n ? 'Dit staat ook in je cloud.' : inCloud.length + ' van de ' + n + ' staan ook in je cloud.'}\nKies wat je wilt doen.</p><div class="stack"><button class="btn btn-red btn-block" id="d-all">Overal verwijderen</button><button class="btn btn-secondary btn-block" id="d-loc">Alleen van dit toestel (cloud blijft)</button><button class="btn btn-secondary btn-block" id="d-no">Annuleren</button></div><p class="note" style="margin-top:12px">Bij “alleen van dit toestel” blijft de cloud-versie (max ${QUAL[S.quality].dim}px) bewaard; het originele bestand op dit toestel gaat dan verloren.</p>`);
+    $('d-no').onclick = () => { closeSheet(); res(false); };
+    $('d-loc').onclick = async () => { closeSheet(); await freeLocal(items.filter(i => i.cloud === 'synced'), true); await removeLocal(items.filter(i => i.cloud !== 'synced')); res(true); };
+    $('d-all').onclick = async () => { closeSheet(); await removeEverywhere(items); res(true); };
+    $('ov').onclick = e => { if (e.target === $('ov')) { closeSheet(); res(false); } };
+  });
+}
+async function removeLocal(items) { for (const it of items) { ITEMS.delete(it.id); await dbDel('blobs', it.id).catch(() => {}); await dbDel('items', it.id).catch(() => {}); } renderPhotos(); if (cur === 'albums') renderAlbums(); toast(items.length === 1 ? 'Verwijderd' : items.length + ' verwijderd'); }
+async function removeEverywhere(items) {
+  const cloud = items.filter(i => i.cloud === 'synced');
+  try {
+    if (CLOUD.uid && cloud.length) {
+      const fs = firebase.firestore(), base = fs.collection('users').doc(CLOUD.uid);
+      for (let k = 0; k < cloud.length; k += 150) { const b = fs.batch(); cloud.slice(k, k + 150).forEach(i => { b.delete(base.collection('drive').doc(i.id)); b.delete(base.collection('driveData').doc(i.id)); b.set(base.collection('driveTrash').doc(i.id), { at: Date.now() }); }); await b.commit(); }
+    }
+  } catch (e) { toast('Cloud niet bereikbaar — niet verwijderd'); return; }
+  await removeLocal(items);
+}
+async function freeLocal(items, quiet) {
+  let n = 0; for (const it of items) { if (it.cloud === 'synced' && it.hasBlob) { await dbDel('blobs', it.id).catch(() => {}); it.hasBlob = false; saveItem(it); n++; } }
+  renderPhotos(); if (!quiet) toast(n + ' originelen van dit toestel gehaald'); else renderPhotos();
+}
+
+/* ============================ cloud (Firebase) ============================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBVpkXL-VJ6xGIrXu8wwt_QmAhnN0URPNE",
+  authDomain: "driveflow-f969a.firebaseapp.com",
+  projectId: "driveflow-f969a",
+  storageBucket: "driveflow-f969a.firebasestorage.app",
+  messagingSenderId: "477685898599",
+  appId: "1:477685898599:web:1172affa3daf0f7ca363c2"
+};
+const STUDYFLOW_PROJECT = 'studyflash-14c1c';
+const CLOUD = { available: false, uid: null, name: '', ready: false };
+const MAXDOC = 880 * 1024;   // Firestore documents are max 1 MiB
+const userToEmail = u => String(u).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + '@studyflow.app';
+const SYNC = { running: false, done: 0, total: 0 };
+function canAutoSync() { if (!CLOUD.uid || !navigator.onLine) return false; const c = navigator.connection; if (S.wifiOnly && c && c.type === 'cellular') return false; return true; }
+function fsBase() { return firebase.firestore().collection('users').doc(CLOUD.uid); }
+
+async function compressForCloud(blob, dim, q) {
+  const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+  let sc = Math.min(1, dim / Math.max(bmp.width, bmp.height)), out = null;
+  for (let round = 0; round < 5; round++) {
+    const w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(bmp, 0, 0, w, h);
+    for (let qq = q; qq >= .4; qq -= .1) { out = await new Promise(r => c.toBlob(r, 'image/jpeg', qq)); if (out && out.size <= MAXDOC) { if (bmp.close) bmp.close(); return out; } }
+    sc *= .8;
+  }
+  if (bmp.close) bmp.close(); if (out && out.size <= 1000 * 1024) return out; throw new Error('te groot');
+}
+async function syncItem(it) {
+  const b = await dbGet('blobs', it.id); if (!b || !b.blob) return false;
+  const qs = QUAL[S.quality]; const c = await compressForCloud(b.blob, qs.dim, qs.q);
+  const u8 = new Uint8Array(await c.arrayBuffer()), base = fsBase(), now = Date.now();
+  const batch = firebase.firestore().batch();
+  batch.set(base.collection('driveData').doc(it.id), { data: firebase.firestore.Blob.fromUint8Array(u8) });
+  batch.set(base.collection('drive').doc(it.id), { name: it.name, mime: 'image/jpeg', orig: it.mime, size: it.size, cloudSize: u8.length, date: it.date, w: it.w, h: it.h, album: it.album || '', fav: !!it.fav, kind: 'image', thumb: it.thumb || '', updatedAt: now, created: it.added || now });
+  await batch.commit();
+  it.cloud = 'synced'; it.cloudSize = u8.length; it.updatedAt = now; await saveItem(it); return true;
+}
+async function syncQueue(ids, manual) {
+  if (!CLOUD.available) { if (manual) toast('Cloud niet beschikbaar'); return; }
+  if (!CLOUD.uid) { if (manual) { toast('Log eerst in'); showAuth(); } return; }
+  if (!navigator.onLine) { if (manual) toast('Geen verbinding'); return; }
+  if (SYNC.running) { if (manual) toast('Synchroniseren is al bezig'); return; }
+  const list = ids.map(i => ITEMS.get(i)).filter(i => i && i.kind === 'image' && i.hasBlob && i.cloud !== 'synced');
+  if (!list.length) { if (manual) toast('Alles staat al in je cloud'); return; }
+  SYNC.running = true; SYNC.done = 0; SYNC.total = list.length; let fail = 0; setSub(); if (cur === 'cloud') renderCloud();
+  for (const it of list) {
+    try { await syncItem(it); } catch (e) { fail++; console.warn('sync', e); it.cloud = 'error'; saveItem(it); if (/permission|insufficient/i.test(String(e && e.message))) { toast('Geen rechten in Firestore — zie Cloud-tab'); CLOUD.rulesErr = true; break; } if (/quota|resource-exhausted/i.test(String(e && (e.code + e.message)))) { toast('Gratis cloud-limiet bereikt'); CLOUD.quotaErr = true; break; } }
+    SYNC.done++; setSub(); if (cur === 'photos') renderPhotos(); if (cur === 'cloud') renderCloud();
+  }
+  SYNC.running = false; setSub(); renderPhotos(); if (cur === 'cloud') renderCloud();
+  toast(fail ? `${list.length - fail} geüpload · ${fail} mislukt` : `${list.length} ${list.length === 1 ? 'foto' : 'foto’s'} in je cloud ☁`);
+}
+async function fetchCloudBlob(it) {
+  if (!CLOUD.uid || !navigator.onLine) return null;
+  const d = await fsBase().collection('driveData').doc(it.id).get(); if (!d.exists) return null;
+  const blob = new Blob([d.data().data.toUint8Array()], { type: 'image/jpeg' });
+  await dbPut('blobs', { id: it.id, blob }); it.hasBlob = true; it.compressed = true; saveItem(it); return blob;
+}
+async function pullCloud(full) {
+  if (!CLOUD.uid || !navigator.onLine) return;
+  try {
+    const base = fsBase(), key = 'df_pull_' + CLOUD.uid, tkey = 'df_trash_' + CLOUD.uid;
+    const last = full ? 0 : (Number(localStorage.getItem(key)) || 0), lastT = full ? 0 : (Number(localStorage.getItem(tkey)) || 0);
+    let maxTs = last, changed = false;
+    const snap = await base.collection('drive').where('updatedAt', '>', last).get();
+    for (const d of snap.docs) {
+      const r = d.data(), id = d.id; let it = ITEMS.get(id); maxTs = Math.max(maxTs, r.updatedAt || 0);
+      if (!it) { it = { id, key: 'cloud|' + id, name: r.name || 'foto.jpg', mime: r.mime || 'image/jpeg', size: r.size || r.cloudSize || 0, date: r.date || r.created || Date.now(), added: r.created || Date.now(), w: r.w || 0, h: r.h || 0, thumb: r.thumb || null, kind: 'image', album: r.album || '', fav: !!r.fav, hasBlob: false, cloud: 'synced', cloudSize: r.cloudSize || 0, updatedAt: r.updatedAt || 0 }; ITEMS.set(id, it); await saveItem(it); changed = true; }
+      else if ((r.updatedAt || 0) > (it.updatedAt || 0)) { it.fav = !!r.fav; it.album = r.album || ''; it.name = r.name || it.name; it.cloud = 'synced'; it.cloudSize = r.cloudSize || it.cloudSize; it.updatedAt = r.updatedAt; await saveItem(it); changed = true; }
+    }
+    localStorage.setItem(key, String(maxTs));
+    const tr = await base.collection('driveTrash').where('at', '>', lastT).get(); let maxT = lastT;
+    for (const d of tr.docs) { maxT = Math.max(maxT, d.data().at || 0); const it = ITEMS.get(d.id); if (it) { ITEMS.delete(d.id); await dbDel('blobs', d.id).catch(() => {}); await dbDel('items', d.id).catch(() => {}); changed = true; } }
+    localStorage.setItem(tkey, String(maxT));
+    const al = await base.collection('driveAlbums').get();
+    al.forEach(d => { const r = d.data(), ex = ALBUMS.find(a => a.id === d.id); if (!ex) ALBUMS.push({ id: d.id, name: r.name, created: r.created || 0, deleted: !!r.deleted, at: r.at || 0 }); else if ((r.at || 0) > (ex.at || 0)) { ex.name = r.name; ex.deleted = !!r.deleted; ex.at = r.at; } });
+    saveAlbums(); CLOUD.lastPull = Date.now();
+    renderPhotos(); if (cur === 'albums') renderAlbums(); if (cur === 'cloud') renderCloud();
+  } catch (e) { console.warn('pull', e); if (/permission/i.test(String(e && e.message))) CLOUD.rulesErr = true; }
+}
+function pushMeta(it) { if (!CLOUD.uid || it.cloud !== 'synced') return; fsBase().collection('drive').doc(it.id).update({ fav: !!it.fav, album: it.album || '', name: it.name, updatedAt: it.updatedAt }).catch(() => {}); }
+function pushAlbum(a) { a.at = Date.now(); saveAlbums(); if (!CLOUD.uid) return; fsBase().collection('driveAlbums').doc(a.id).set({ name: a.name, created: a.created, deleted: !!a.deleted, at: a.at }).catch(() => {}); }
+async function refreshCloud() { if (!CLOUD.uid) { toast('Log eerst in'); showAuth(); return; } toast('Verversen…'); await pullCloud(true); toast('Bijgewerkt'); }
+
+/* ---- own Firebase project (setup) ---- */
+const RULES_TXT = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n  }\n}";
+function openCloudSetup() {
+  const has = !!FIREBASE_CONFIG;
+  openSheet(`<h2>Eigen cloud-project</h2><p class="sd">DriveFlow gebruikt een apart, gratis Firebase-project. Zo kunnen je foto’s de opslag van StudyFlow nooit vol maken.</p>
+    <div class="lbl">Eenmalig instellen</div>
+    <p class="note" style="margin:0 0 12px;line-height:1.7">1. Ga naar console.firebase.google.com → <b>Project toevoegen</b> (naam bijv. “driveflow”).<br>2. <b>Build → Authentication</b> → Aan de slag → zet <b>E-mail/wachtwoord</b> aan.<br>3. <b>Build → Firestore Database</b> → Database maken → tab <b>Rules</b> → plak de regels hieronder → Publish.<br>4. <b>Projectinstellingen → Je apps → Web (&lt;/&gt;)</b> → registreer → kopieer het <b>firebaseConfig</b>-blok en plak het hier.</p>
+    <button class="btn btn-secondary btn-block btn-sm" id="cs-rules" style="margin-bottom:12px">Firestore-regels kopiëren</button>
+    <textarea id="cs-cfg" class="field" style="height:140px;font-size:.72rem;font-family:ui-monospace,Menlo,monospace;resize:none" placeholder='const firebaseConfig = {&#10;  apiKey: "…",&#10;  authDomain: "…",&#10;  projectId: "…",&#10;  …&#10;};'></textarea>
+    <div class="auth-err" id="cs-err"></div>
+    <div class="row2"><button class="btn btn-secondary" onclick="closeSheet()">Sluiten</button><button class="btn btn-primary" id="cs-save">Opslaan</button></div>
+    ${has ? `<button class="btn btn-red btn-block btn-sm" id="cs-clear" style="margin-top:10px">Cloud-project loskoppelen</button><p class="note" style="margin-top:8px">Nu gekoppeld: ${esc(FIREBASE_CONFIG.projectId)}</p>` : ''}`);
+  $('cs-rules').onclick = async () => { try { await navigator.clipboard.writeText(RULES_TXT); toast('Regels gekopieerd'); } catch (e) { $('cs-cfg').value = RULES_TXT; toast('Kopieer de regels uit het vak'); } };
+  $('cs-save').onclick = () => {
+    const txt = $('cs-cfg').value, cfg = {}; let m; const re = /["']?([A-Za-z]+)["']?\s*:\s*["']([^"']+)["']/g;
+    while ((m = re.exec(txt))) cfg[m[1]] = m[2];
+    if (!cfg.apiKey || !cfg.projectId || !cfg.appId) { $('cs-err').textContent = 'Ik vind apiKey, projectId en appId niet. Plak het hele firebaseConfig-blok.'; return; }
+    if (cfg.projectId === STUDYFLOW_PROJECT) { $('cs-err').textContent = 'Dit is het StudyFlow-project. Maak een nieuw, apart project.'; return; }
+    if (!cfg.authDomain) cfg.authDomain = cfg.projectId + '.firebaseapp.com';
+    const keep = {}; ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'].forEach(k => { if (cfg[k]) keep[k] = cfg[k]; });
+    lsSet('df_fbconfig', keep); lsSet('df_local', false); location.reload();
+  };
+  if (has) $('cs-clear').onclick = async () => { if (await confirmSheet('Loskoppelen?', 'Je foto’s op dit toestel blijven bewaard. De cloud-foto’s blijven in je project staan.', 'Loskoppelen')) { try { localStorage.removeItem('df_fbconfig'); } catch (e) {} location.reload(); } };
+}
+
+/* ---- auth ---- */
+function showAuth() { $('auth').classList.add('show'); $('au-err').textContent = ''; }
+function hideAuth() { $('auth').classList.remove('show'); }
+function goLocal() { lsSet('df_local', true); hideAuth(); }
+function authErr(e) {
+  const c = (e && e.code) || '';
+  if (/user-not-found|wrong-password|invalid-credential|invalid-login/.test(c)) return 'Naam of wachtwoord klopt niet.';
+  if (/email-already-in-use/.test(c)) return 'Deze naam bestaat al — log in.';
+  if (/weak-password/.test(c)) return 'Wachtwoord moet minstens 6 tekens zijn.';
+  if (/network/.test(c)) return 'Geen verbinding.';
+  if (/too-many/.test(c)) return 'Te veel pogingen. Wacht even.';
+  if (/operation-not-allowed/.test(c)) return 'Inloggen met naam is niet aangezet in Firebase.';
+  return 'Er ging iets mis' + (c ? ' (' + c.replace('auth/', '') + ')' : '') + '.';
+}
+async function doAuth(register) {
+  const name = $('au-name').value.trim(), pw = $('au-pw').value;
+  if (!CLOUD.available) { $('au-err').textContent = 'Cloud is niet beschikbaar (geen internet?).'; return; }
+  if (!/[a-z0-9]/i.test(name)) { $('au-err').textContent = 'Vul een gebruikersnaam in.'; return; }
+  if (!pw) { $('au-err').textContent = 'Vul je wachtwoord in.'; return; }
+  $('au-login').disabled = $('au-reg').disabled = true; $('au-err').textContent = '';
+  try {
+    if (register) await firebase.auth().createUserWithEmailAndPassword(userToEmail(name), pw);
+    else await firebase.auth().signInWithEmailAndPassword(userToEmail(name), pw);
+    $('au-pw').value = ''; lsSet('df_local', false); hideAuth();
+  } catch (e) { $('au-err').textContent = authErr(e); }
+  $('au-login').disabled = $('au-reg').disabled = false;
+}
+$('au-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(false); });
+async function logout() { if (!(await confirmSheet('Uitloggen?', 'Je foto’s op dit toestel blijven bewaard.', 'Uitloggen', false))) return; try { await firebase.auth().signOut(); } catch (e) {} }
+function initCloud() {
+  if (!FIREBASE_CONFIG) { CLOUD.available = false; CLOUD.noConfig = true; CLOUD.ready = true; return; }
+  CLOUD.available = typeof firebase !== 'undefined';
+  if (!CLOUD.available) { CLOUD.ready = true; if (!lsGet('df_local', false)) { $('auth-p').textContent = 'Cloud is nu niet bereikbaar. Je kunt wel zonder account verder; foto’s blijven op deze telefoon.'; showAuth(); } return; }
+  try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); } catch (e) { CLOUD.available = false; showAuth(); return; }
+  let first = true;
+  firebase.auth().onAuthStateChanged(async user => {
+    CLOUD.ready = true;
+    if (user) { CLOUD.uid = user.uid; CLOUD.name = (user.email || '').split('@')[0]; hideAuth(); await pullCloud(false); if (cur === 'cloud') renderCloud(); if (S.autoSync && canAutoSync()) syncQueue([...ITEMS.keys()]); }
+    else { CLOUD.uid = null; CLOUD.name = ''; if (!lsGet('df_local', false)) showAuth(); if (cur === 'cloud') renderCloud(); }
+    first = false;
+  });
+  window.addEventListener('online', () => { if (CLOUD.uid && S.autoSync && canAutoSync()) { pullCloud(false); syncQueue([...ITEMS.keys()]); } });
+}
+function cloudUsed() { let n = 0, c = 0; ITEMS.forEach(i => { if (i.cloud === 'synced') { n++; c += (i.cloudSize || 0) + (i.thumb ? i.thumb.length : 0); } }); return { n, bytes: c }; }
+async function renderCloud() {
+  const cu = cloudUsed(), limit = S.cloudGB * 1073741824, pct = Math.min(100, cu.bytes / limit * 100);
+  const cnt = { synced: 0, pending: 0, error: 0, local: 0, video: 0, cloudOnly: 0 }; ITEMS.forEach(i => { if (i.cloud === 'synced') cnt.synced++; else if (i.cloud === 'pending') cnt.pending++; else if (i.cloud === 'error') cnt.error++; else if (i.kind === 'video') cnt.video++; else cnt.local++; if (!i.hasBlob) cnt.cloudOnly++; });
+  const si = await storageInfo(); let libSize = 0; ITEMS.forEach(i => { if (i.hasBlob) libSize += i.size || 0; });
+  $('c-sub').textContent = CLOUD.uid ? 'Verbonden als ' + CLOUD.name : (CLOUD.available ? 'Niet ingelogd' : 'Cloud niet beschikbaar');
+  const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const devPct = si && si.quota ? Math.min(100, si.usage / si.quota * 100) : 0;
+  $('cloud-body').innerHTML = `
+    ${`<div class="card"><div class="mt"><b>${CLOUD.uid ? esc(CLOUD.name) : 'Geen account'}</b><span>${CLOUD.uid ? '<span class="pill">Verbonden</span>' : '<span class="pill red">Niet ingelogd</span>'}</span></div>
+      <p class="note" style="margin:8px 0 12px">${CLOUD.uid ? 'Foto’s die je uploadt komen op elk apparaat waar je met dit account inlogt.' : 'Log in of maak een account om foto’s op al je apparaten te zien.'}</p>
+      ${CLOUD.uid ? '<button class="btn btn-secondary btn-block btn-sm" onclick="logout()">Uitloggen</button>' : '<button class="btn btn-primary btn-block" onclick="showAuth()">Inloggen / account maken</button>'}</div>`}
+    <div class="sec">Cloud-opslag</div><div class="card">
+      <div class="mt"><b>${fmtBytes(cu.bytes)}</b><span>van ${S.cloudGB >= 1000 ? (S.cloudGB / 1000) + ' TB' : S.cloudGB + ' GB'} (${pct.toFixed(1)}%)</span></div>
+      <div class="meter"><i class="${pct > 95 ? 'full' : pct > 80 ? 'warn' : ''}" style="width:${pct}%"></i></div>
+      ${kv('In cloud', cu.n + ' foto’s')}${kv('Wacht op upload', cnt.pending + (cnt.error ? ' (+' + cnt.error + ' mislukt)' : ''))}${kv('Alleen op toestel', (cnt.local + cnt.video) + (cnt.video ? ' (' + cnt.video + ' video’s)' : ''))}${kv('Alleen in cloud', cnt.cloudOnly)}
+      ${SYNC.running ? `<div class="prog"><i style="width:${Math.round(SYNC.done / Math.max(1, SYNC.total) * 100)}%"></i></div><p class="note">Synchroniseren ${SYNC.done}/${SYNC.total}…</p>` : ''}
+      ${CLOUD.rulesErr ? '<p class="note" style="color:var(--red)">Firestore weigert schrijven. De cloud-regels staan nog op “geweigerd”; publiceer ze één keer in de Firebase-console.</p>' : ''}
+      ${CLOUD.quotaErr ? '<p class="note" style="color:var(--red)">De gratis Firestore-limiet is bereikt. Ruim foto’s op of upgrade je Firebase-plan.</p>' : ''}
+    </div>
+    <div class="sec">Op dit toestel</div><div class="card">
+      <div class="mt"><b>${fmtBytes(libSize)}</b><span>${si && si.quota ? 'ruimte voor DriveFlow: ' + fmtBytes(si.quota) : 'limiet onbekend'}</span></div>
+      <div class="meter"><i class="${devPct > 95 ? 'full' : devPct > 80 ? 'warn' : ''}" style="width:${devPct}%"></i></div>
+      <p class="note">De limiet is wat je browser/telefoon voor deze app toestaat — meestal een groot deel van je vrije opslag.</p></div>
+    <div class="stack"><button class="btn btn-primary btn-block" onclick="syncQueue([...ITEMS.keys()],true)">☁ Alles synchroniseren</button><button class="btn btn-secondary btn-block" onclick="refreshCloud()">↻ Cloud verversen</button><button class="btn btn-secondary btn-block" onclick="freeSpace()">Ruimte vrijmaken</button></div>
+    <p class="note" style="margin-top:14px">De cloud-kopie is een verkleinde JPEG (${QUAL[S.quality].dim}px) zodat 1 foto in 1 Firestore-document past. Originelen blijven op het toestel waar je ze toevoegde. De gratis Firestore-limiet is 1 GB totaal, alleen voor dit eigen project.</p>`;
+}
+async function freeSpace() {
+  const items = [...ITEMS.values()].filter(i => i.cloud === 'synced' && i.hasBlob); if (!items.length) { toast('Niks om vrij te maken'); return; }
+  const size = items.reduce((a, i) => a + (i.size || 0), 0);
+  if (await confirmSheet('Ruimte vrijmaken?', `${items.length} originelen (${fmtBytes(size)}) worden van dit toestel gehaald. Je houdt alleen de cloud-versie (max ${QUAL[S.quality].dim}px). Dit kan niet ongedaan worden.`, 'Vrijmaken')) { await freeLocal(items); renderCloud(); }
+}
+
+/* ============================ settings ============================ */
+function seg(id, opts, val) { return `<div class="seg" id="${id}">${opts.map(([v, l]) => `<button data-v="${v}" class="${String(val) === String(v) ? 'on' : ''}">${esc(l)}</button>`).join('')}</div>`; }
+function tgl(id, label, on, d) { return `<div class="set-row inline"><div><div class="sr-t">${esc(label)}</div>${d ? `<div class="sr-d" style="margin:2px 0 0">${esc(d)}</div>` : ''}</div><button class="sw-switch ${on ? 'on' : ''}" id="${id}" aria-label="${esc(label)}"></button></div>`; }
+function renderSettings() {
+  const isPre = PRESETS.some(c => c.toLowerCase() === S.accent.toLowerCase());
+  $('set-body').innerHTML = `
+    <div class="sec">Uiterlijk</div><div class="card">
+      <div class="set-row"><div class="sr-t">Kleur</div><div class="sr-d">Kies een kleur of maak je eigen kleur.</div><div class="swatches">${PRESETS.map(c => `<button class="sw ${c.toLowerCase() === S.accent.toLowerCase() ? 'on' : ''}" style="background:${c}" data-c="${c}" aria-label="${c}"></button>`).join('')}<div class="sw custom ${!isPre ? 'on' : ''}" ${!isPre ? `style="background:${S.accent}"` : ''}><input type="color" id="accent-pick" value="${S.accent}"></div></div></div>
+      <div class="set-row"><div class="sr-t">Thema</div>${seg('sg-theme', [['dark', '☾ Donker'], ['light', '☀ Licht']], S.theme)}</div>
+      <div class="set-row"><div class="sr-t">Foto’s per rij</div>${seg('sg-cols', [[2, '2'], [3, '3'], [4, '4'], [5, '5']], S.cols)}</div>
+    </div>
+    <div class="sec">Cloud</div><div class="card">
+      ${tgl('tg-auto', 'Automatisch uploaden', S.autoSync, 'Nieuwe foto’s direct naar je cloud')}
+      ${NATIVE ? tgl('tg-import', 'Foto’s uit galerij oppakken', S.autoImport, 'Nieuwe foto’s van je telefoon automatisch toevoegen en uploaden') + `<div class="set-row"><button class="btn btn-secondary btn-block btn-sm" id="bt-import">Laatste 300 foto’s uit galerij importeren</button></div>` : ''}
+      ${tgl('tg-wifi', 'Alleen via wifi', S.wifiOnly, 'Niet uploaden via mobiele data (als je telefoon dat doorgeeft)')}
+      <div class="set-row"><div class="sr-t">Kwaliteit in cloud</div><div class="sr-d">Hoger = scherper, maar minder foto’s in je gratis ruimte.</div>${seg('sg-q', [['high', 'Hoog'], ['normal', 'Normaal'], ['small', 'Zuinig']], S.quality)}</div>
+      <div class="set-row"><div class="sr-t">Cloud-limiet (weergave)</div><div class="sr-d">Gratis Firestore = 1 GB. Zet hoger als je je Firebase-plan hebt opgewaardeerd.</div>${seg('sg-gb', [[1, '1 GB'], [10, '10 GB'], [100, '100 GB'], [1024, '1 TB']], S.cloudGB)}</div>
+    </div>
+    <p class="note">DriveFlow bewaart originelen in de opslag van deze app op je toestel. Foto’s in de cloud staan in je eigen Firebase-project, los van StudyFlow.</p>`;
+  const root = $('set-body');
+  root.querySelectorAll('.sw[data-c]').forEach(b => b.onclick = () => { applyAccent(b.dataset.c); saveS(); renderSettings(); });
+  const pick = $('accent-pick'); pick.oninput = () => { applyAccent(pick.value); saveS(); root.querySelectorAll('.sw').forEach(s => s.classList.remove('on')); const c = pick.parentNode; c.classList.add('on'); c.style.background = pick.value; };
+  const bind = (id, fn) => root.querySelectorAll('#' + id + ' button').forEach(b => b.onclick = () => { fn(b.dataset.v); saveS(); renderSettings(); });
+  bind('sg-theme', v => applyTheme(v)); bind('sg-cols', v => { S.cols = +v; applyCols(); }); bind('sg-q', v => S.quality = v); bind('sg-gb', v => S.cloudGB = +v);
+  const t = (id, k) => $(id).onclick = () => { S[k] = !S[k]; saveS(); renderSettings(); }; t('tg-auto', 'autoSync'); t('tg-wifi', 'wifiOnly'); if (NATIVE) { t('tg-import', 'autoImport'); $('bt-import').onclick = () => scanGallery({ force: true, all: true }); }
+}
+
+/* ============================ init ============================ */
+async function init() {
+  applyTheme(S.theme); applyAccent(S.accent); applyCols();
+  try { DBH = await openDB(); (await dbAll('items')).forEach(i => ITEMS.set(i.id, i)); } catch (e) { toast('Opslag niet beschikbaar in deze browser'); console.warn(e); }
+  renderPhotos(); initCloud();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+}
+/* ============================ native galerij auto-import (Android-app) ============================ */
+const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+function mediaPlugin() { return window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Media; }
+let SCANNING = false;
+function toMs(v) { if (typeof v === 'number') return v < 1e12 ? v * 1000 : v; const t = Date.parse(v); return isNaN(t) ? Date.now() : t; }
+async function scanGallery(opts) {
+  opts = opts || {}; const M = mediaPlugin();
+  if (!NATIVE || !M || SCANNING || ADDING) return;
+  if (!opts.force && !S.autoImport) return;
+  SCANNING = true;
+  try {
+    try { if (M.requestPermissions) await M.requestPermissions(); } catch (e) {}
+    let since = Number(localStorage.getItem('df_auto_since') || 0);
+    if (!since) { since = Date.now(); localStorage.setItem('df_auto_since', String(since)); }
+    const seen = new Set(lsGet('df_seen_media', []));
+    const res = await M.getMedias({ quantity: opts.all ? 300 : 80, types: 'photos', sort: 'creationDate', thumbnailWidth: 64, thumbnailHeight: 64, thumbnailQuality: 30 });
+    const list = (res && res.medias || []).filter(m => !seen.has(m.identifier) && (opts.all || toMs(m.creationDate) >= since));
+    if (!list.length) { if (opts.force) toast('Geen nieuwe foto’s gevonden'); return; }
+    const files = [];
+    for (const m of list.slice(0, 60)) {
+      try {
+        const r = await M.getMediaByIdentifier({ identifier: m.identifier });
+        const path = r && (r.path || r.uri); if (!path) continue;
+        const blob = await (await fetch(Capacitor.convertFileSrc(path))).blob();
+        const name = decodeURIComponent(String(path).split('/').pop() || ('foto-' + Date.now() + '.jpg'));
+        files.push(new File([blob], name, { type: blob.type || 'image/jpeg', lastModified: toMs(m.creationDate) }));
+        seen.add(m.identifier);
+      } catch (e) { console.warn('media', e); }
+    }
+    lsSet('df_seen_media', [...seen].slice(-3000));
+    if (files.length) await addFiles(files);
+  } catch (e) { console.warn('scanGallery', e); if (opts.force) toast('Galerij lezen mislukt — geef toegang tot foto’s'); }
+  finally { SCANNING = false; }
+}
+if (NATIVE) {
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) scanGallery(); });
+  setInterval(() => { if (!document.hidden) scanGallery(); }, 60000);
+  setTimeout(() => scanGallery(), 2500);
+}
+
+
+init();
+</script>
+</body>
+</html>
