@@ -828,13 +828,13 @@ async function init() {
 }
 /* ============================ native galerij auto-import (Android-app) ============================ */
 const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
-function mediaPlugin() { try { return window.Capacitor && Capacitor.registerPlugin ? Capacitor.registerPlugin('Gallery') : null; } catch (e) { return null; } }
+function mediaPlugin() { try { const C = window.Capacitor; if (!C) return null; if (C.Plugins && C.Plugins.Gallery) return C.Plugins.Gallery; if (C.registerPlugin) return C.registerPlugin('Gallery'); } catch (e) {} return null; }
 let SCANNING = false;
 function dbgSheet(title, info) { openSheet('<h2>' + esc(title) + '</h2><p class="sd" style="white-space:pre-wrap;word-break:break-all;font-size:.74rem">' + esc(info) + '</p><button class="btn btn-secondary btn-block" onclick="closeSheet()">Sluiten</button>'); }
 async function scanGallery(opts) {
   opts = opts || {}; const G = mediaPlugin();
   if (!NATIVE || SCANNING || ADDING) return;
-  if (!G) { if (opts.force) dbgSheet('Galerij-plugin ontbreekt', 'Capacitor.registerPlugin niet beschikbaar'); return; }
+  if (!G) { if (opts.force) dbgSheet('Galerij-plugin ontbreekt', 'Plugins: ' + Object.keys((window.Capacitor && Capacitor.Plugins) || {}).join(', ') + ' | convertFileSrc: ' + !!(window.Capacitor && Capacitor.convertFileSrc)); return; }
   if (!opts.force && !S.autoImport) return;
   SCANNING = true; let stage = 'start';
   try {
