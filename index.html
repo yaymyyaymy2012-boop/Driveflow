@@ -89,6 +89,10 @@ input { font-family:inherit; font-weight:800; }
 .tile .b-cloud.synced { color:var(--accent); } .tile .b-cloud.pending { color:var(--gold); } .tile .b-cloud.error { color:var(--red); }
 .tile .b-fav { left:5px; bottom:5px; color:var(--gold); }
 .tile .b-vid { left:5px; top:5px; }
+.tile .ph.fl { flex-direction:column; gap:2px; padding:6px; text-align:center; }
+.tile .fi { font-size:1.6rem; line-height:1; }
+.tile .fe { font-size:.72rem; font-weight:900; color:var(--accent); letter-spacing:.04em; }
+.tile .fn { font-size:.6rem; font-weight:800; color:var(--text2); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .tile .chk { position:absolute; right:6px; top:6px; width:24px; height:24px; border-radius:50%; border:2.5px solid #fff; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; color:var(--accent-ink); font-weight:900; font-size:.8rem; }
 .selmode .tile .chk { display:flex; }
 .tile.sel { border-color:var(--accent); transform:scale(.93); }
@@ -272,6 +276,7 @@ input { font-family:inherit; font-weight:800; }
 <div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
 <div id="toast"></div>
 <input type="file" id="f-pick" accept="image/*,video/*" multiple class="hidden">
+<input type="file" id="f-any" multiple class="hidden">
 <input type="file" id="f-cam" accept="image/*,video/*" capture="environment" class="hidden">
 
 <script>
@@ -375,10 +380,11 @@ function dayLabel(ts) {
 }
 let GRID_LIMIT = 240, VIEW = [];
 const CLOUD_IC = { synced: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>', pending: '<svg viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></svg>', error: '<svg viewBox="0 0 24 24"><path d="M12 7v6M12 17h.01"/></svg>' };
+function extOf(n) { const m = /\.([A-Za-z0-9]{1,6})$/.exec(n || ''); return m ? m[1].toUpperCase() : 'BESTAND'; }
 function renderChips() {
   const al = ALBUMS.filter(a => !a.deleted).find(a => a.id === F.album);
   const c = (on, label, fn) => `<button class="chipb ${on ? 'on' : ''}" onclick="${fn}">${label}</button>`;
-  $('chips').innerHTML = c(F.kind === 'all' && !F.fav, 'Alles', "setFilter('all')") + c(F.fav, '★ Favorieten', 'setFilter(\'fav\')') + c(F.kind === 'image', 'Foto’s', "setFilter('image')") + c(F.kind === 'video', 'Video’s', "setFilter('video')") + (al ? c(true, '▣ ' + esc(al.name) + ' ✕', "setAlbumFilter('')") : '');
+  $('chips').innerHTML = c(F.kind === 'all' && !F.fav, 'Alles', "setFilter('all')") + c(F.fav, '★ Favorieten', 'setFilter(\'fav\')') + c(F.kind === 'image', 'Foto’s', "setFilter('image')") + c(F.kind === 'video', 'Video’s', "setFilter('video')") + c(F.kind === 'file', 'Bestanden', "setFilter('file')") + (al ? c(true, '▣ ' + esc(al.name) + ' ✕', "setAlbumFilter('')") : '');
 }
 function setFilter(k) { if (k === 'fav') { F.fav = !F.fav; } else { F.kind = k; F.fav = false; } GRID_LIMIT = 240; renderPhotos(); }
 function setAlbumFilter(id) { F.album = id; GRID_LIMIT = 240; if (cur !== 'photos') show('photos'); else renderPhotos(); }
@@ -400,7 +406,7 @@ function renderPhotos() {
   part.forEach(it => {
     const dl = dayLabel(it.date || it.added);
     if (dl !== lastDay) { if (open) html += '</div>'; html += `<div class="gh">${esc(dl)}</div><div class="gg">`; lastDay = dl; open = true; }
-    html += `<button class="tile ${SEL.has(it.id) ? 'sel' : ''}" data-id="${it.id}">${it.thumb ? `<img src="${it.thumb}" alt="" loading="lazy" decoding="async">` : '<div class="ph">🖼️</div>'}${it.kind === 'video' ? '<span class="bd b-vid"><svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M8 5v14l11-7z"/></svg></span>' : ''}${it.fav ? '<span class="bd b-fav">★</span>' : ''}${CLOUD_IC[it.cloud] ? `<span class="bd b-cloud ${it.cloud}">${CLOUD_IC[it.cloud]}</span>` : ''}<span class="chk">✓</span></button>`;
+    html += `<button class="tile ${SEL.has(it.id) ? 'sel' : ''}" data-id="${it.id}">${it.thumb ? `<img src="${it.thumb}" alt="" loading="lazy" decoding="async">` : (it.kind === 'file' ? `<div class="ph fl"><span class="fi">📄</span><span class="fe">${esc(extOf(it.name))}</span><span class="fn">${esc(it.name)}</span></div>` : '<div class="ph">🖼️</div>')}${it.kind === 'video' ? '<span class="bd b-vid"><svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M8 5v14l11-7z"/></svg></span>' : ''}${it.fav ? '<span class="bd b-fav">★</span>' : ''}${CLOUD_IC[it.cloud] ? `<span class="bd b-cloud ${it.cloud}">${CLOUD_IC[it.cloud]}</span>` : ''}<span class="chk">✓</span></button>`;
   });
   if (open) html += '</div>';
   if (VIEW.length > GRID_LIMIT) html += `<button class="btn btn-secondary more" onclick="GRID_LIMIT+=240;renderPhotos()">Meer laden (${VIEW.length - GRID_LIMIT})</button>`;
@@ -434,13 +440,14 @@ async function selAction(a) {
 
 /* ============================ file add / upload ============================ */
 function openUpload() {
-  openSheet(`<h2>Toevoegen</h2><p class="sd">Foto’s en video’s worden op dit toestel bewaard${CLOUD.uid ? ' en foto’s gaan daarna naar je cloud.' : '. Log in via het Cloud-tabblad om ze ook op andere apparaten te zien.'}</p>
-    <div class="stack"><button class="btn btn-primary btn-block" onclick="closeSheet();$('f-pick').click()">🖼️ Foto’s / video’s kiezen</button><button class="btn btn-secondary btn-block" onclick="closeSheet();$('f-cam').click()">📷 Camera</button><button class="btn btn-secondary btn-block" onclick="closeSheet()">Annuleren</button></div>`);
+  openSheet(`<h2>Toevoegen</h2><p class="sd">Foto’s, video’s en bestanden worden op dit toestel bewaard${CLOUD.uid ? '; foto’s en kleine bestanden (tot 850 KB) gaan daarna naar je cloud.' : '. Log in via het Cloud-tabblad om ze ook op andere apparaten te zien.'}</p>
+    <div class="stack"><button class="btn btn-primary btn-block" onclick="closeSheet();$('f-pick').click()">🖼️ Foto’s / video’s kiezen</button><button class="btn btn-secondary btn-block" onclick="closeSheet();$('f-any').click()">📁 Bestanden (downloads, apk, pdf…)</button><button class="btn btn-secondary btn-block" onclick="closeSheet();$('f-cam').click()">📷 Camera</button><button class="btn btn-secondary btn-block" onclick="closeSheet()">Annuleren</button></div>`);
 }
 $('f-pick').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+$('f-any').addEventListener('change', e => { addFiles([...e.target.files], true); e.target.value = ''; });
 $('f-cam').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
 document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
+document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) addFiles([...e.dataTransfer.files], true); });
 
 function imgInfo(file) {
   return createImageBitmap(file, { imageOrientation: 'from-image' }).then(bmp => {
@@ -461,8 +468,8 @@ function videoInfo(file) {
 }
 async function storageInfo() { try { const e = await navigator.storage.estimate(); return { usage: e.usage || 0, quota: e.quota || 0 }; } catch (e) { return null; } }
 let ADDING = false;
-async function addFiles(files) {
-  files = files.filter(f => /^image\//.test(f.type) || /^video\//.test(f.type) || /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|mp4|mov|m4v|webm|3gp)$/i.test(f.name));
+async function addFiles(files, any) {
+  if (!any) files = files.filter(f => /^image\//.test(f.type) || /^video\//.test(f.type) || /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|mp4|mov|m4v|webm|3gp)$/i.test(f.name));
   if (!files.length) { toast('Geen foto’s of video’s gekozen'); return; }
   if (ADDING) { toast('Even wachten, bezig met uploaden…'); return; }
   ADDING = true;
@@ -475,10 +482,12 @@ async function addFiles(files) {
     const key = `${f.name}|${f.size}|${f.lastModified}`; if (keys.has(key)) { dup++; continue; }
     const si = await storageInfo(); if (si && si.quota && si.usage + f.size > si.quota * .97) { full = true; break; }
     const isVid = /^video\//.test(f.type) || /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.name);
-    const info = isVid ? await videoInfo(f) : await imgInfo(f);
+    const isImg = /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp)$/i.test(f.name);
+    const isFile = !isVid && !isImg;
+    const info = isFile ? { thumb: null, w: 0, h: 0 } : isVid ? await videoInfo(f) : await imgInfo(f);
     const id = uid(), now = Date.now();
-    const canCloud = !isVid && !info.bad;
-    const it = { id, key, name: f.name, mime: f.type || (isVid ? 'video/mp4' : 'image/jpeg'), size: f.size, date: f.lastModified || now, added: now, w: info.w, h: info.h, thumb: info.thumb, kind: isVid ? 'video' : 'image', album: F.album || '', fav: false, hasBlob: true, cloud: canCloud ? 'pending' : 'none', cloudSize: 0, updatedAt: now };
+    const canCloud = isFile ? f.size <= MAXDOC : (!isVid && !info.bad);
+    const it = { id, key, name: f.name, mime: f.type || (isFile ? 'application/octet-stream' : isVid ? 'video/mp4' : 'image/jpeg'), size: f.size, date: f.lastModified || now, added: now, w: info.w, h: info.h, thumb: info.thumb, kind: isFile ? 'file' : isVid ? 'video' : 'image', album: F.album || '', fav: false, hasBlob: true, cloud: canCloud ? 'pending' : 'none', cloudSize: 0, updatedAt: now };
     try { await dbPut('blobs', { id, blob: f }); await dbPut('items', it); } catch (e) { full = true; break; }
     ITEMS.set(id, it); keys.add(key); added++; newIds.push(id); if (info.bad) bad++;
   }
@@ -538,6 +547,7 @@ async function loadV() {
   if (vId !== mine) return;
   if (!blob) { st.innerHTML = `<div style="color:#fff;text-align:center;padding:30px;line-height:1.5">${it.thumb ? `<img src="${it.thumb}" style="max-width:100%;border-radius:12px;margin-bottom:12px"><br>` : ''}Kan het bestand niet laden.<br><span style="color:#94a3b8;font-size:.85rem">Controleer je verbinding en probeer opnieuw.</span></div>`; return; }
   vUrl = URL.createObjectURL(blob);
+  if (it.kind === 'file') { st.innerHTML = `<div style="color:#fff;text-align:center;padding:30px;line-height:1.6;max-width:90%"><div style="font-size:4rem">📄</div><div style="font-weight:900;font-size:1.2rem;word-break:break-all;margin-top:8px">${esc(it.name)}</div><div style="color:#94a3b8;font-weight:800;margin:6px 0 18px">${esc(extOf(it.name))} · ${fmtBytes(it.size)}</div><button class="btn btn-primary" onclick="vShare()">Delen / opslaan</button></div>`; return; }
   st.innerHTML = it.kind === 'video' ? `<video src="${vUrl}" controls playsinline autoplay></video>` : `<img src="${vUrl}" alt="">`;
 }
 function vStep(d) { const n = vIdx + d; if (n < 0 || n >= VIEW.length) return; vIdx = n; loadV(); }
@@ -560,7 +570,7 @@ function vStep(d) { const n = vIdx + d; if (n < 0 || n >= VIEW.length) return; v
 })();
 function vFav() { const it = ITEMS.get(vId); if (!it) return; setFav(it.id, !it.fav); $('v-fav').classList.toggle('on', it.fav); }
 async function vAlbum() { const id = await pickAlbum(); if (id !== undefined && vId) { setAlbum(vId, id); toast('Verplaatst'); } }
-function vSync() { const it = ITEMS.get(vId); if (!it) return; if (it.kind !== 'image') { toast('Video’s blijven op dit toestel'); return; } if (it.cloud === 'synced') { toast('Staat al in je cloud'); return; } syncQueue([it.id], true); }
+function vSync() { const it = ITEMS.get(vId); if (!it) return; if (it.kind === 'video' || (it.kind === 'file' && it.size > MAXDOC)) { toast(it.kind === 'video' ? 'Video’s blijven op dit toestel' : 'Dit bestand is te groot voor de gratis cloud (max 850 KB)'); return; } if (it.cloud === 'synced') { toast('Staat al in je cloud'); return; } syncQueue([it.id], true); }
 async function vShare() {
   const it = ITEMS.get(vId); if (!it) return; const b = await dbGet('blobs', it.id).catch(() => null); let blob = b && b.blob; if (!blob) { toast('Bestand niet op dit toestel'); return; }
   const file = new File([blob], it.name, { type: it.mime });
@@ -636,11 +646,13 @@ async function compressForCloud(blob, dim, q) {
 }
 async function syncItem(it) {
   const b = await dbGet('blobs', it.id); if (!b || !b.blob) return false;
-  const qs = QUAL[S.quality]; const c = await compressForCloud(b.blob, qs.dim, qs.q);
+  let c;
+  if (it.kind === 'file') { if (b.blob.size > MAXDOC) { it.cloud = 'none'; await saveItem(it); return false; } c = b.blob; }
+  else { const qs = QUAL[S.quality]; c = await compressForCloud(b.blob, qs.dim, qs.q); }
   const u8 = new Uint8Array(await c.arrayBuffer()), base = fsBase(), now = Date.now();
   const batch = firebase.firestore().batch();
   batch.set(base.collection('driveData').doc(it.id), { data: firebase.firestore.Blob.fromUint8Array(u8) });
-  batch.set(base.collection('drive').doc(it.id), { name: it.name, mime: 'image/jpeg', orig: it.mime, size: it.size, cloudSize: u8.length, date: it.date, w: it.w, h: it.h, album: it.album || '', fav: !!it.fav, kind: 'image', thumb: it.thumb || '', updatedAt: now, created: it.added || now });
+  batch.set(base.collection('drive').doc(it.id), { name: it.name, mime: it.kind === 'file' ? it.mime : 'image/jpeg', orig: it.mime, size: it.size, cloudSize: u8.length, date: it.date, w: it.w, h: it.h, album: it.album || '', fav: !!it.fav, kind: it.kind === 'file' ? 'file' : 'image', thumb: it.thumb || '', updatedAt: now, created: it.added || now });
   await batch.commit();
   it.cloud = 'synced'; it.cloudSize = u8.length; it.updatedAt = now; await saveItem(it); return true;
 }
@@ -649,7 +661,7 @@ async function syncQueue(ids, manual) {
   if (!CLOUD.uid) { if (manual) { toast('Log eerst in'); showAuth(); } return; }
   if (!navigator.onLine) { if (manual) toast('Geen verbinding'); return; }
   if (SYNC.running) { if (manual) toast('Synchroniseren is al bezig'); return; }
-  const list = ids.map(i => ITEMS.get(i)).filter(i => i && i.kind === 'image' && i.hasBlob && i.cloud !== 'synced');
+  const list = ids.map(i => ITEMS.get(i)).filter(i => i && (i.kind === 'image' || (i.kind === 'file' && i.size <= MAXDOC)) && i.hasBlob && i.cloud !== 'synced');
   if (!list.length) { if (manual) toast('Alles staat al in je cloud'); return; }
   SYNC.running = true; SYNC.done = 0; SYNC.total = list.length; let fail = 0; setSub(); if (cur === 'cloud') renderCloud();
   for (const it of list) {
@@ -662,7 +674,7 @@ async function syncQueue(ids, manual) {
 async function fetchCloudBlob(it) {
   if (!CLOUD.uid || !navigator.onLine) return null;
   const d = await fsBase().collection('driveData').doc(it.id).get(); if (!d.exists) return null;
-  const blob = new Blob([d.data().data.toUint8Array()], { type: 'image/jpeg' });
+  const blob = new Blob([d.data().data.toUint8Array()], { type: it.mime || 'image/jpeg' });
   await dbPut('blobs', { id: it.id, blob }); it.hasBlob = true; it.compressed = true; saveItem(it); return blob;
 }
 async function pullCloud(full) {
@@ -674,7 +686,7 @@ async function pullCloud(full) {
     const snap = await base.collection('drive').where('updatedAt', '>', last).get();
     for (const d of snap.docs) {
       const r = d.data(), id = d.id; let it = ITEMS.get(id); maxTs = Math.max(maxTs, r.updatedAt || 0);
-      if (!it) { it = { id, key: 'cloud|' + id, name: r.name || 'foto.jpg', mime: r.mime || 'image/jpeg', size: r.size || r.cloudSize || 0, date: r.date || r.created || Date.now(), added: r.created || Date.now(), w: r.w || 0, h: r.h || 0, thumb: r.thumb || null, kind: 'image', album: r.album || '', fav: !!r.fav, hasBlob: false, cloud: 'synced', cloudSize: r.cloudSize || 0, updatedAt: r.updatedAt || 0 }; ITEMS.set(id, it); await saveItem(it); changed = true; }
+      if (!it) { it = { id, key: 'cloud|' + id, name: r.name || 'foto.jpg', mime: r.mime || 'image/jpeg', size: r.size || r.cloudSize || 0, date: r.date || r.created || Date.now(), added: r.created || Date.now(), w: r.w || 0, h: r.h || 0, thumb: r.thumb || null, kind: r.kind === 'file' ? 'file' : 'image', album: r.album || '', fav: !!r.fav, hasBlob: false, cloud: 'synced', cloudSize: r.cloudSize || 0, updatedAt: r.updatedAt || 0 }; ITEMS.set(id, it); await saveItem(it); changed = true; }
       else if ((r.updatedAt || 0) > (it.updatedAt || 0)) { it.fav = !!r.fav; it.album = r.album || ''; it.name = r.name || it.name; it.cloud = 'synced'; it.cloudSize = r.cloudSize || it.cloudSize; it.updatedAt = r.updatedAt; await saveItem(it); changed = true; }
     }
     localStorage.setItem(key, String(maxTs));
