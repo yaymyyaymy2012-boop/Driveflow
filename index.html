@@ -805,7 +805,7 @@ function renderSettings() {
     </div>
     <div class="sec">Cloud</div><div class="card">
       ${tgl('tg-auto', 'Automatisch uploaden', S.autoSync, 'Nieuwe foto’s direct naar je cloud')}
-      ${NATIVE ? tgl('tg-import', 'Foto’s uit galerij oppakken', S.autoImport, 'Nieuwe foto’s van je telefoon automatisch toevoegen en uploaden') + `<div class="set-row"><button class="btn btn-secondary btn-block btn-sm" id="bt-import">Laatste 300 foto’s uit galerij importeren</button></div>` : ''}
+      ${NATIVE ? tgl('tg-import', 'Foto’s uit galerij oppakken', S.autoImport, 'Nieuwe foto’s van je telefoon automatisch toevoegen en uploaden') + `<div class="set-row"><button class="btn btn-secondary btn-block btn-sm" id="bt-import">Alle foto’s uit galerij importeren</button></div>` : ''}
       ${tgl('tg-wifi', 'Alleen via wifi', S.wifiOnly, 'Niet uploaden via mobiele data (als je telefoon dat doorgeeft)')}
       <div class="set-row"><div class="sr-t">Kwaliteit in cloud</div><div class="sr-d">Hoger = scherper, maar minder foto’s in je gratis ruimte.</div>${seg('sg-q', [['high', 'Hoog'], ['normal', 'Normaal'], ['small', 'Zuinig']], S.quality)}</div>
       <div class="set-row"><div class="sr-t">Cloud-limiet (weergave)</div><div class="sr-d">Gratis Firestore = 1 GB. Zet hoger als je je Firebase-plan hebt opgewaardeerd.</div>${seg('sg-gb', [[1, '1 GB'], [10, '10 GB'], [100, '100 GB'], [1024, '1 TB']], S.cloudGB)}</div>
@@ -845,24 +845,28 @@ async function scanGallery(opts) {
     if (!since) { since = Date.now(); localStorage.setItem('df_auto_since', String(since)); }
     const seen = new Set(lsGet('df_seen_media', []));
     stage = 'lijst';
-    const res = await G.list({ limit: opts.all ? 300 : 60, since: opts.all ? 0 : since });
+    const res = await G.list({ limit: opts.all ? 1000 : 60, since: opts.all ? 0 : since });
     const list = ((res && res.items) || []).filter(m => !seen.has('g' + m.id));
     if (!list.length) { if (opts.force) toast('Geen nieuwe foto’s gevonden'); return; }
-    const files = []; let lastErr = '';
-    for (const m of list.slice(0, 60)) {
-      try {
-        stage = 'kopiëren';
-        const r = await G.copy({ id: m.id });
-        stage = 'lezen';
-        const resp = await fetch(Capacitor.convertFileSrc(r.path)); if (!resp.ok) throw new Error('fetch ' + resp.status);
-        const blob = await resp.blob();
-        files.push(new File([blob], m.name || ('foto-' + m.id + '.jpg'), { type: blob.type || 'image/jpeg', lastModified: m.date || Date.now() }));
-        seen.add('g' + m.id);
-      } catch (e) { lastErr = stage + ': ' + (e && e.message || e); console.warn('media', e); }
+    let lastErr = '', done = 0;
+    for (let i = 0; i < list.length; i += 15) {
+      const files = [];
+      for (const m of list.slice(i, i + 15)) {
+        try {
+          stage = 'kopiëren';
+          const r = await G.copy({ id: m.id });
+          stage = 'lezen';
+          const resp = await fetch(Capacitor.convertFileSrc(r.path)); if (!resp.ok) throw new Error('fetch ' + resp.status);
+          const blob = await resp.blob();
+          files.push(new File([blob], m.name || ('foto-' + m.id + '.jpg'), { type: blob.type || 'image/jpeg', lastModified: m.date || Date.now() }));
+          seen.add('g' + m.id);
+        } catch (e) { lastErr = stage + ': ' + (e && e.message || e); console.warn('media', e); }
+      }
+      lsSet('df_seen_media', [...seen].slice(-6000));
+      if (files.length) { await addFiles(files); done += files.length; }
     }
-    lsSet('df_seen_media', [...seen].slice(-4000));
-    if (files.length) await addFiles(files);
-    else if (opts.force) dbgSheet('Kon foto’s niet lezen', lastErr);
+    if (!done && opts.force) dbgSheet('Kon foto’s niet lezen', lastErr);
+    else if (done && list.length > 15) toast(done + ' foto’s uit galerij toegevoegd');
   } catch (e) { console.warn('scanGallery', e); if (opts.force) dbgSheet('Galerij lezen mislukt', 'Stap: ' + stage + '\nFout: ' + (e && (e.message || JSON.stringify(e)) || e)); }
   finally { SCANNING = false; }
 }
