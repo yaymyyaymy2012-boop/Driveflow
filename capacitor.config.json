@@ -1,6 +1,5 @@
 {
-  "appId": "com.driveflow.app",
-  "appName": "DriveFlow",
-  "webDir": "www",
-  "android": { "allowMixedContent": false }
+  "appId": "com.gameflow.app",
+  "appName": "GameFlow",
+  "webDir": "www"
 }
